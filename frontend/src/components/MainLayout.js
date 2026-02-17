@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, AppBar, Toolbar } from '@mui/material'
-import { Dashboard, People, Receipt, Announcement } from '@mui/icons-material';
+import { Dashboard, People, Receipt, History, Business, Announcement } from '@mui/icons-material';
 import { Link, Outlet } from 'react-router-dom';
 
 const drawerWidth = 260; 
@@ -11,6 +11,8 @@ export default function MainLayout() {
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { text: 'Registration', icon: <People />, path: '/dashboard/register' },
     { text: 'Member Directory', icon: <People />, path: '/dashboard/directory' },
+    { text: 'Track Ownership', icon: <History />, path: '/dashboard/history' },
+    { text: 'Unit Management', icon: <Business />, path: '/dashboard/units' },
     { text: 'Billing', icon: <Receipt />, path: '/dashboard/billing' },
     { text: 'Notice Board', icon: <Announcement />, path: '/dashboard/notices' },
   ];

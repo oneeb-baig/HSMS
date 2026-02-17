@@ -5,7 +5,10 @@ import { Box, Paper, Typography } from '@mui/material';
 import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
 import RegisterMember from './pages/RegisterMember';
-import MemberDirectory from './pages/MemberDirectory'; // 1. Import the new page
+import MemberDirectory from './pages/MemberDirectory'; 
+import OwnershipHistory from './pages/OwnershipHistory';// 1. Import the new page
+import UnitManagement from './pages/UnitManagement';
+
 
 function App() {
   return (
@@ -23,12 +26,12 @@ function App() {
               </Paper>
             </Box>
           } />
-          
           <Route path="register" element={<RegisterMember />} />
           
           {/* 2. Add this line for the Directory */}
           <Route path="directory" element={<MemberDirectory />} />
-          
+          <Route path="history" element={<OwnershipHistory />} />
+          <Route path="units" element={<UnitManagement />} />
           <Route path="billing" element={<h1>Billing & Payments Coming Soon</h1>} />
         </Route>
       </Routes>
@@ -37,3 +40,6 @@ function App() {
 }
 
 export default App;
+
+
+

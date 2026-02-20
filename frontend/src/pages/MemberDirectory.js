@@ -207,6 +207,7 @@ const [currentMember, setCurrentMember] = useState(null);
   {/* Make sure these names match the database exactly! */}
   <Typography variant="body1"><b>CNIC:</b> {currentMember.cnic}</Typography> 
   <Typography variant="body1"><b>Phone:</b> {currentMember.phone_no}</Typography>
+  <Typography variant="body1"><b>Email:</b> {currentMember.email || 'N/A'}</Typography>
 </Box>
 
         <hr />

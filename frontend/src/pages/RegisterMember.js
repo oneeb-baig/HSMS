@@ -5,6 +5,7 @@ import axios from 'axios';
 const RegisterMember = () => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [cnic, setCnic] = useState('');
 const [vehicleNo, setVehicleNo] = useState('');
 const [vehicleType, setVehicleType] = useState('Car');
@@ -74,6 +75,7 @@ const [ownerCnic, setOwnerCnic] = useState('');
       const memberData = { 
   fullName, 
   phone, 
+  email,
   houseNo, 
   block, 
   status,
@@ -119,6 +121,16 @@ const [ownerCnic, setOwnerCnic] = useState('');
             onChange={(e) => setPhone(e.target.value)}
             helperText="Format: 0309-4774254"
           />
+
+
+          <TextField 
+  label="Email Address" 
+  fullWidth 
+  placeholder="resident@example.com"
+  value={email} 
+  onChange={(e) => setEmail(e.target.value)} 
+  helperText="Used for automated billing notifications"
+/>
 <TextField 
   label="CNIC (e.g. 35202-1234567-1)" 
   fullWidth 

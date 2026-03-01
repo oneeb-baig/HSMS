@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-  Paper, Typography, Box, Stack, IconButton, Tooltip, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, MenuItem
+  Paper, Typography, Box, Stack, IconButton, Tooltip, Chip, 
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, 
+  Button, MenuItem, Grid, Divider // <--- ADDED THESE TWO
 } from '@mui/material';
 import { Delete, Edit, Search, SwapHoriz, Visibility } from '@mui/icons-material';
 import axios from 'axios';
@@ -161,23 +163,79 @@ const [currentMember, setCurrentMember] = useState(null);
 
       {/* EDIT DIALOG */}
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>Edit Resident Details</DialogTitle>
-        <DialogContent>
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            <TextField label="Full Name" fullWidth value={selectedMember.full_name} onChange={(e) => setSelectedMember({ ...selectedMember, full_name: e.target.value })} />
-            <TextField label="Phone Number" fullWidth value={selectedMember.phone_no} onChange={(e) => setSelectedMember({ ...selectedMember, phone_no: e.target.value })} />
-            <TextField select label="House / Unit Number" fullWidth value={selectedMember.house_no || ''} onChange={(e) => setSelectedMember({ ...selectedMember, house_no: e.target.value })}>
-              {availableUnits.map((unit) => (
-                <MenuItem key={unit.unit_id} value={unit.unit_no}>{unit.unit_no} ({unit.unit_type})</MenuItem>
-              ))}
-            </TextField>
+  <DialogTitle sx={{ fontWeight: 'bold' }}>Update Resident Profile</DialogTitle>
+  <DialogContent dividers>
+    <Stack spacing={2.5} sx={{ mt: 1 }}>
+      
+      {/* SECTION: Personal Details */}
+      <Typography variant="overline" color="primary" sx={{ fontWeight: 'bold' }}>Personal Information</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Full Name" fullWidth value={selectedMember.full_name} onChange={(e) => setSelectedMember({ ...selectedMember, full_name: e.target.value })} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="CNIC" fullWidth value={selectedMember.cnic} onChange={(e) => setSelectedMember({ ...selectedMember, cnic: e.target.value })} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Phone Number" fullWidth value={selectedMember.phone_no} onChange={(e) => setSelectedMember({ ...selectedMember, phone_no: e.target.value })} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Email Address" fullWidth value={selectedMember.email || ''} onChange={(e) => setSelectedMember({ ...selectedMember, email: e.target.value })} />
+        </Grid>
+      </Grid>
+
+      <Divider />
+
+      {/* SECTION: Property Details */}
+      <Typography variant="overline" color="primary" sx={{ fontWeight: 'bold' }}>Property & Status</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField select label="House / Unit" fullWidth value={selectedMember.house_no || ''} onChange={(e) => setSelectedMember({ ...selectedMember, house_no: e.target.value })}>
+            {availableUnits.map((unit) => (
+              <MenuItem key={unit.unit_id} value={unit.unit_no}>{unit.unit_no}</MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField select label="Status" fullWidth value={selectedMember.ownership_status || ''} onChange={(e) => setSelectedMember({ ...selectedMember, ownership_status: e.target.value })}>
+            <MenuItem value="Owner">Owner</MenuItem>
+            <MenuItem value="Tenant">Tenant</MenuItem>
+          </TextField>
+        </Grid>
+      </Grid>
+
+      <Divider />
+
+      {/* SECTION: Vehicle Details */}
+      <Typography variant="overline" color="primary" sx={{ fontWeight: 'bold' }}>Vehicle Information</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Vehicle Number" fullWidth value={selectedMember.vehicle_no || ''} onChange={(e) => setSelectedMember({ ...selectedMember, vehicle_no: e.target.value })} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Vehicle Type" fullWidth placeholder="e.g. Civic, Corolla, Bike" value={selectedMember.vehicle_type || ''} onChange={(e) => setSelectedMember({ ...selectedMember, vehicle_type: e.target.value })} />
+        </Grid>
+      </Grid>
+
+      {/* SECTION: Tenant Specific Info (Shows only if status is Tenant) */}
+      {selectedMember.ownership_status === 'Tenant' && (
+        <>
+          <Divider />
+          <Typography variant="overline" color="error" sx={{ fontWeight: 'bold' }}>Property Owner Details (Required for Tenants)</Typography>
+          <TextField label="Owner Name" fullWidth value={selectedMember.owner_name_if_tenant || ''} onChange={(e) => setSelectedMember({ ...selectedMember, owner_name_if_tenant: e.target.value })} />
+          <Stack direction="row" spacing={2}>
+            <TextField label="Owner Phone" fullWidth value={selectedMember.owner_phone_if_tenant || ''} onChange={(e) => setSelectedMember({ ...selectedMember, owner_phone_if_tenant: e.target.value })} />
+            <TextField label="Owner CNIC" fullWidth value={selectedMember.owner_cnic_if_tenant || ''} onChange={(e) => setSelectedMember({ ...selectedMember, owner_cnic_if_tenant: e.target.value })} />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: '#334155' }}>Save Changes</Button>
-        </DialogActions>
-      </Dialog>
+        </>
+      )}
+    </Stack>
+  </DialogContent>
+  <DialogActions sx={{ p: 3 }}>
+    <Button onClick={handleClose}>Cancel</Button>
+    <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: '#334155' }}>Update Resident</Button>
+  </DialogActions>
+</Dialog>
 
       {/* TRANSFER DIALOG */}
       <Dialog open={transferOpen} onClose={() => setTransferOpen(false)}>

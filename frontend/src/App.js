@@ -12,6 +12,7 @@ import UnitManagement from './pages/UnitManagement';
 import Billing from './pages/Billing';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
+import Communication from './pages/Communication';
 
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
     <Route path="billing" element={<Billing />} />
     <Route path="expenses" element={<Expenses />} />
     <Route path="reports" element={<Reports />} />
+    <Route path="communication" element={<Communication />} />
   </Route>
 </Routes>
     </BrowserRouter>

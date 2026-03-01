@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect here
+import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography, TextField, Button, Stack, MenuItem } from '@mui/material';
 import axios from 'axios';
 
 const RegisterMember = () => {
+  // FORM STATES
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [cnic, setCnic] = useState('');
-const [vehicleNo, setVehicleNo] = useState('');
-const [vehicleType, setVehicleType] = useState('Car');
-const [ownerName, setOwnerName] = useState('');
-const [ownerPhone, setOwnerPhone] = useState('');
-const [ownerCnic, setOwnerCnic] = useState('');
-  // 1. ADDED HOUSE NO STATE (This fixes your error)
-  const [houseNo, setHouseNo] = useState(''); 
+  const [houseNo, setHouseNo] = useState('');
+  const [block, setBlock] = useState('Block 1');
+  const [status, setStatus] = useState('Owner');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [vehicleType, setVehicleType] = useState('Car');
+  
+  // TENANT-ONLY STATES
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerCnic, setOwnerCnic] = useState('');
   
   const [availableUnits, setAvailableUnits] = useState([]);
-  const [block, setBlock] = useState('Block 1'); 
-  const [status, setStatus] = useState('Owner');
 
-  // 2. FETCH UNITS FOR DROPDOWN
+  // Fetch Units from Database for Dropdown
   useEffect(() => {
     const fetchUnits = async () => {
       try {
@@ -33,70 +35,51 @@ const [ownerCnic, setOwnerCnic] = useState('');
   }, []);
 
   const handleRegister = async () => {
- // 1. Define the Regex Rules
-  const phoneRegex = /^03\d{2}-\d{7}$/;        // Format: 0300-1234567
-  const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;   // Format: 35202-1234567-1
+    // Validation Rules
+    const phoneRegex = /^03\d{2}-\d{7}$/;       // Format: 0300-1234567
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;    // Format: 35202-1234567-1
 
-  // 2. Basic Empty Check
-  if (!fullName || !phone || !houseNo || !cnic) {
-    alert("Please fill all required fields (Name, Phone, House, CNIC)");
-    return;
-  }
-
-  // 3. Phone Validation
-  if (!phoneRegex.test(phone)) {
-    alert("Invalid Phone Number! Please use format: 03XX-XXXXXXX (e.g., 0309-4774254)");
-    return;
-  }
-
-  // 4. Resident CNIC Validation
-  if (!cnicRegex.test(cnic)) {
-    alert("Invalid Resident CNIC! Please use format: XXXXX-XXXXXXX-X");
-    return;
-  }
-
-  // 5. Tenant-Specific Validation
-  if (status === 'Tenant') {
-    if (!ownerName || !ownerPhone || !ownerCnic) {
-      alert("Please provide all Owner details for a Tenant registration.");
+    if (!fullName || !phone || !houseNo || !cnic) {
+      alert("Please fill all required fields (Name, Phone, House, CNIC)");
       return;
     }
-    if (!phoneRegex.test(ownerPhone)) {
-      alert("Invalid Owner Phone format!");
+
+    if (!phoneRegex.test(phone)) {
+      alert("Invalid Phone Format! Use: 03XX-XXXXXXX");
       return;
     }
-    if (!cnicRegex.test(ownerCnic)) {
-      alert("Invalid Owner CNIC format!");
+
+    if (!cnicRegex.test(cnic)) {
+      alert("Invalid CNIC Format! Use: XXXXX-XXXXXXX-X");
       return;
     }
-  }
+
+    if (status === 'Tenant') {
+      if (!ownerName || !ownerPhone || !ownerCnic) {
+        alert("Please provide all Property Owner details for Tenant registration.");
+        return;
+      }
+    }
 
     try {
       const memberData = { 
-  fullName, 
-  phone, 
-  email,
-  houseNo, 
-  block, 
-  status,
-  cnic,               // Added
-  vehicleNo,          // Added
-  vehicleType,        // Added
-  ownerName: status === 'Tenant' ? ownerName : null,   // Logic added
-  ownerPhone: status === 'Tenant' ? ownerPhone : null, // Logic added
-  ownerCnic: status === 'Tenant' ? ownerCnic : null    // Logic added
-};
+        fullName, phone, email, houseNo, block, status, cnic, 
+        vehicleNo, vehicleType, 
+        ownerName: status === 'Tenant' ? ownerName : null,
+        ownerPhone: status === 'Tenant' ? ownerPhone : null,
+        ownerCnic: status === 'Tenant' ? ownerCnic : null 
+      };
       
-      const res = await axios.post('http://localhost:5000/api/members', memberData);
+      await axios.post('http://localhost:5000/api/members', memberData);
       alert("Resident registered successfully!");
       
-      // Clear form after success
-      setFullName('');
-      setPhone('');
-      setHouseNo('');
+      // RESET FORM
+      setFullName(''); setPhone(''); setEmail(''); setCnic('');
+      setHouseNo(''); setVehicleNo(''); setOwnerName('');
+      setOwnerPhone(''); setOwnerCnic('');
     } catch (error) {
-      console.error("Axios Error:", error.response?.data || error.message);
-      alert("Error saving resident. Check terminal.");
+      console.error("Registration Error:", error.response?.data || error.message);
+      alert("Error saving resident.");
     }
   };
 
@@ -108,123 +91,70 @@ const [ownerCnic, setOwnerCnic] = useState('');
         </Typography>
 
         <Stack spacing={3}>
+          <TextField label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+
           <TextField 
-            label="Full Name" 
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)} 
+            label="Phone Number" 
+            value={phone} 
+            placeholder="0300-1234567" 
+            onChange={(e) => setPhone(e.target.value)} 
+            helperText="Format: 0300-1234567"
           />
 
           <TextField 
-            label="Phone Number (03XX-XXXXXXX)" 
-            value={phone}
-            placeholder="0309-4774254"
-            onChange={(e) => setPhone(e.target.value)}
-            helperText="Format: 0309-4774254"
+            label="Email Address" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            helperText="Used for automated billing"
           />
 
+          <TextField 
+            label="CNIC" 
+            value={cnic} 
+            placeholder="35202-1234567-1"
+            onChange={(e) => setCnic(e.target.value)} 
+            helperText="Format: 35202-1234567-1"
+          />
 
           <TextField 
-  label="Email Address" 
-  fullWidth 
-  placeholder="resident@example.com"
-  value={email} 
-  onChange={(e) => setEmail(e.target.value)} 
-  helperText="Used for automated billing notifications"
-/>
-<TextField 
-  label="CNIC (e.g. 35202-1234567-1)" 
-  fullWidth 
-  value={cnic} 
-  onChange={(e) => setCnic(e.target.value)} 
-/>
-
-          <TextField 
-            select 
-            label="House / Unit Number" 
+            select label="House / Unit Number" 
             value={houseNo} 
-            onChange={(e) => setHouseNo(e.target.value)} 
-            fullWidth
+            onChange={(e) => setHouseNo(e.target.value)}
           >
-            {availableUnits.length === 0 ? (
-              <MenuItem disabled>No Units available. Add them in Unit Management first.</MenuItem>
-            ) : (
-              availableUnits.map((unit) => (
-                <MenuItem key={unit.unit_id} value={unit.unit_no}>
-                  {unit.unit_no} ({unit.unit_type})
-                </MenuItem>
-              ))
-            )}
+            {availableUnits.map((unit) => (
+              <MenuItem key={unit.unit_id} value={unit.unit_no}>
+                {unit.unit_no} ({unit.unit_type})
+              </MenuItem>
+            ))}
           </TextField>
 
-<Stack direction="row" spacing={2}>
-  <TextField 
-    label="Vehicle Number" 
-    fullWidth 
-    placeholder="LEA-1234"
-    value={vehicleNo} 
-    onChange={(e) => setVehicleNo(e.target.value)} 
-  />
-  <TextField 
-    select 
-    label="Vehicle Type" 
-    sx={{ width: '150px' }}
-    value={vehicleType} 
-    onChange={(e) => setVehicleType(e.target.value)}
-  >
-    <MenuItem value="Car">Car</MenuItem>
-    <MenuItem value="Bike">Bike</MenuItem>
-    <MenuItem value="Other">Other</MenuItem>
-    <MenuItem value="None">None</MenuItem>
-  </TextField>
-</Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField label="Vehicle Number" fullWidth value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />
+            <TextField 
+              select label="Type" 
+              sx={{ width: '150px' }} 
+              value={vehicleType} 
+              onChange={(e) => setVehicleType(e.target.value)}
+            >
+              <MenuItem value="Car">Car</MenuItem>
+              <MenuItem value="Bike">Bike</MenuItem>
+              <MenuItem value="None">None</MenuItem>
+            </TextField>
+          </Stack>
 
-
-          <TextField
-            select
-            label="Select Block"
-            value={block}
-            onChange={(e) => setBlock(e.target.value)}
-          >
-            <MenuItem value="Block 1">Block 1</MenuItem>
-            <MenuItem value="Block 2">Block 2</MenuItem>
-            <MenuItem value="Block 3">Block 3</MenuItem>
-          </TextField>
-
-          <TextField
-            select
-            label="Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
+          <TextField select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <MenuItem value="Owner">Owner</MenuItem>
             <MenuItem value="Tenant">Tenant</MenuItem>
           </TextField>
 
           {status === 'Tenant' && (
-  <Stack spacing={3}>
-    <Typography variant="subtitle2" sx={{ color: 'primary.main', mt: 1 }}>
-      Actual Property Owner Details
-    </Typography>
-    <TextField 
-      label="Owner Full Name" 
-      value={ownerName} 
-      onChange={(e) => setOwnerName(e.target.value)} 
-    />
-    <TextField 
-      label="Owner Contact Number" 
-      value={ownerPhone} 
-      onChange={(e) => setOwnerPhone(e.target.value)} 
-    />
-    <TextField 
-        label="Actual Owner CNIC" 
-       
-        placeholder="35698-98788544"
-        value={ownerCnic} 
-        onChange={(e) => setOwnerCnic(e.target.value)} 
-        helperText="Format: 35698-98788544"
-      />
-  </Stack>
-)}
+            <Stack spacing={2} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+              <Typography variant="subtitle2" color="primary">Property Owner Details</Typography>
+              <TextField size="small" label="Owner Name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
+              <TextField size="small" label="Owner Contact" value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} />
+              <TextField size="small" label="Owner CNIC" value={ownerCnic} onChange={(e) => setOwnerCnic(e.target.value)} />
+            </Stack>
+          )}
 
           <Button variant="contained" onClick={handleRegister} sx={{ bgcolor: '#334155', py: 1.5 }}>
             Register Resident

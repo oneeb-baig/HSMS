@@ -123,10 +123,10 @@ const Reports = () => {
 
 // --- SUB-COMPONENT FOR TABLES ---
 const ReportTable = ({ data, type }) => {
-    // Calculate Net Flow: Income (+) and Expenses (-)
+  
     const netFlow = data.reduce((sum, row) => {
-        if (row.total_amount) return sum + parseFloat(row.total_amount); // Income
-        if (row.amount) return sum - parseFloat(row.amount); // Expense
+        if (row.total_amount) return sum + parseFloat(row.total_amount);
+        if (row.amount) return sum - parseFloat(row.amount);
         return sum;
     }, 0);
 

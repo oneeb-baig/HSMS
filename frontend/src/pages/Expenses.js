@@ -7,9 +7,9 @@ import { DeleteOutline } from '@mui/icons-material';
 import { IconButton, Tooltip } from '@mui/material';
 import axios from 'axios';
 
-const categories = ["Staff Salaries", "Repairs", "Administrative Costs", "Utility Bills", "Park Maintenance", "Other"];
 
 const Expenses = () => {
+  const categories = ["Staff Salaries", "Repairs", "Administrative Costs", "Utility Bills", "Park Maintenance", "Other"];
   const [expenses, setExpenses] = useState([]);
   const [form, setForm] = useState({ description: '', category: '', amount: '', date: new Date().toISOString().split('T')[0] });
 
@@ -31,7 +31,6 @@ const Expenses = () => {
 const handleDelete = async (id) => {
   if (window.confirm("Are you sure you want to delete this expense record?")) {
     try {
-      // Ensure the URL is exactly like your other working routes
       await axios.delete(`http://localhost:5000/api/expenses/${id}`);
       fetchExpenses(); 
     } catch (err) {
@@ -41,14 +40,8 @@ const handleDelete = async (id) => {
   }
 };
 
-
-// Calculate the total of all expenses
 const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
 
-// Optional: Calculate by Category (for extra credit in your project)
-const staffSalaries = expenses
-  .filter(exp => exp.category === "Staff Salaries")
-  .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
 
   return (
     <Box>

@@ -1,11 +1,12 @@
+require('dotenv').config(); // MUST be at the very top
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: 'postgres',           // Your default pgAdmin username
-  host: 'localhost',
-  database: 'hsms_db',       // The name of the DB where you ran the SQL command
-  password: 'OneeBaig.18',  // REPLACE THIS with your pgAdmin password
-  port: 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASS, 
+  port: process.env.DB_PORT,
 });
 
 module.exports = pool;

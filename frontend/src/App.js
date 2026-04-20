@@ -13,7 +13,9 @@ import Billing from './pages/Billing';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 import Communication from './pages/Communication';
-
+import TrackVisitors from './pages/TrackVisitors';
+import StaffManagement from './pages/StaffManagement';
+import GateAndPatrolling from './pages/GatesAndPatrolling';
 
 function App() {
   return (
@@ -33,6 +35,9 @@ function App() {
     <Route path="expenses" element={<Expenses />} />
     <Route path="reports" element={<Reports />} />
     <Route path="communication" element={<Communication />} />
+    <Route path="visitors" element={<TrackVisitors />} />
+    <Route path="staff" element={<StaffManagement />} />
+    <Route path="GateAndPatrolling" element={<GateAndPatrolling />} />
   </Route>
 </Routes>
     </BrowserRouter>

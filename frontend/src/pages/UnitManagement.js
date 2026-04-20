@@ -9,9 +9,6 @@ import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions 
 import axios from 'axios';
 
 
-
-
-
 const UnitManagement = () => {
   const [units, setUnits] = useState([]);
   const [newUnit, setNewUnit] = useState({ 
@@ -46,7 +43,7 @@ const [selectedUnit, setSelectedUnit] = useState(null);
       await axios.post('http://localhost:5000/api/units', newUnit);
       alert("Unit Registered Successfully!");
       setNewUnit({ unit_no: '', unit_type: 'Apartment', floor_no: '', base_charges: '' }); // Reset form
-      fetchUnits(); // Refresh table
+      fetchUnits();
     } catch (err) {
       console.error(err);
       alert("Error adding unit. Make sure Unit No is unique.");
@@ -71,6 +68,7 @@ const handleEditClick = (unit) => {
 };
 
 const handleUpdateUnit = async () => {
+
   try {
     await axios.put(`http://localhost:5000/api/units/${selectedUnit.unit_id}`, selectedUnit);
     setEditOpen(false);
@@ -122,7 +120,7 @@ const handleUpdateUnit = async () => {
   type="number" 
   size="small" 
   value={newUnit.marla}
-  onChange={(e) => setNewUnit({...newUnit, marla: e.target.value})} 
+  onChange={(e) => setNewUnit({...newUnit, marla: e.target.value})}   
 />
           <TextField 
             label="Monthly Charges" 
@@ -175,7 +173,6 @@ const handleUpdateUnit = async () => {
           </TableBody>
         </Table>
       </TableContainer>
-
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
   <DialogTitle>Edit Unit Details</DialogTitle>

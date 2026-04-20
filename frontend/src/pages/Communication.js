@@ -21,7 +21,7 @@ const Communication = () => {
   const [complaints, setComplaints] = useState([]);
   const [openNotice, setOpenNotice] = useState(false);
   const [openComp, setOpenComp] = useState(false);
- const [openPoll, setOpenPoll] = useState(false); // Controls the Poll Popup
+ const [openPoll, setOpenPoll] = useState(false);
 const [newPoll, setNewPoll] = useState({ 
   question: '', 
   option1: '', 
@@ -55,9 +55,29 @@ const [newNotice, setNewNotice] = useState({
 
   const handleSOS = async () => {
     if (window.confirm("TRIGGER EMERGENCY SOS? This will alert security immediately.")) {
-      await axios.post('http://localhost:5000/api/sos', { house_no: 'H-101', resident_name: 'Oneeb' });
-      alert("EMERGENCY ALERT SENT!");
-      fetchComplaints();
+      try {
+        // 1. Send the private alert to the backend (existing logic)
+        await axios.post('http://localhost:5000/api/sos', { 
+          house_no: 'H-101', 
+          resident_name: 'Oneeb' 
+        });
+
+        // 2. Automatically create a PUBLIC Notice with category 'SOS'
+        await axios.post('http://localhost:5000/api/notices', {
+          title: "🚨 EMERGENCY SOS ALERT",
+          content: `An emergency alert has been triggered from House H-101 (Oneeb). Security and medical teams have been notified.`,
+          category: "SOS" // This sets the category you wanted
+        });
+
+        alert("EMERGENCY ALERT SENT AND POSTED TO NOTICE BOARD!");
+        
+        // 3. Refresh both lists to show the new complaint and the new notice
+        fetchComplaints();
+        fetchNotices(); 
+      } catch (err) {
+        console.error("SOS Trigger failed:", err);
+        alert("Critical failure sending SOS. Please contact security manually.");
+      }
     }
   };
 
@@ -66,16 +86,16 @@ const handlePostNotice = async () => {
     if(!newNotice.title || !newNotice.content) return alert("Please fill all fields");
     try {
       await axios.post('http://localhost:5000/api/notices', newNotice);
-      setOpenNotice(false); // Close the popup
+      setOpenNotice(false); 
       setNewNotice({ title: '', content: '', category: 'Update' });
-      fetchNotices(); // Refresh list
+      fetchNotices(); 
     } catch (err) { console.error(err); }
   };
 
   const handleDeleteNotice = async (id) => {
   if (window.confirm("Delete this notice permanently?")) {
     await axios.delete(`http://localhost:5000/api/notices/${id}`);
-    fetchNotices(); // Refresh list
+    fetchNotices(); 
   }
 };
 
@@ -84,7 +104,7 @@ const handlePostNotice = async () => {
     try {
       await axios.post('http://localhost:5000/api/complaints', {
         ...newComp,
-        house_no: 'H-101', // This should come from user session later
+        house_no: 'H-101',
         resident_name: 'Oneeb'
       });
       setOpenComp(false); // Close the popup
@@ -133,8 +153,7 @@ const handleDeletePoll = async (id) => {
   
   return (
     <Box sx={{ p: 2, ...pulseKeyframes }}>
-      
-      {/* HEADER SECTION */}
+    
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1e293b' }}>Communication Hub</Typography>
@@ -163,7 +182,7 @@ const handleDeletePoll = async (id) => {
 
       <Grid container spacing={3}>
       
-        {/* LEFT COLUMN: NOTICE BOARD (65%) */}
+        {/*  NOTICE BOARD */}
 <Grid item xs={12} md={7.5}>
   <Paper sx={{ p: 3, borderRadius: 3, minHeight: '70vh', bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
@@ -172,7 +191,6 @@ const handleDeletePoll = async (id) => {
     </Stack>
     
     <Stack spacing={2.5}>
-      {/* CHECK: If notices array is empty, show a message */}
       {notices.length === 0 ? (
         <Box sx={{ textAlign: 'center', mt: 10 }}>
           <Typography color="textSecondary">No notices found. Try adding one!</Typography>
@@ -183,10 +201,14 @@ const handleDeletePoll = async (id) => {
   <CardContent>
     <Stack direction="row" justifyContent="space-between">
       <Box>
-        <Chip label={notice.category} size="small" color="primary" sx={{ mb: 1 }} />
+        <Chip label={notice.category} size="small"color={notice.category === 'SOS' ? 'error' : 'primary'} sx={{ 
+    mb: 1, 
+    fontWeight: notice.category === 'SOS' ? 'bold' : 'normal',
+    // Add a slight pulse effect if it's an SOS notice
+    animation: notice.category === 'SOS' ? 'pulse 2s infinite' : 'none'
+  }} />
         <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{notice.title}</Typography>
         
-        {/* Show Schedule only if it's a Meeting or Event */}
         {(notice.category === 'Meeting' || notice.category === 'Event') && notice.scheduled_date && (
           <Stack direction="row" spacing={2} sx={{ mt: 1, color: '#1e40af', bgcolor: '#eff6ff', p: 1, borderRadius: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -203,16 +225,15 @@ const handleDeletePoll = async (id) => {
         <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>{notice.content}</Typography>
       </Box>
 
-      {/* DELETE BUTTON FOR ADMIN */}
       {userRole === 'admin' && (
-        <Box sx={{ alignSelf: 'flex-start', ml: 1 }}> {/* Prevents vertical stretching */}
+        <Box sx={{ alignSelf: 'flex-start', ml: 1 }}> 
     <IconButton 
       color="error" 
       onClick={() => handleDeleteNotice(notice.id)}
       sx={{ 
-        bgcolor: '#fee2e2', // Light red background
-        '&:hover': { bgcolor: '#fecaca' }, // Darker on hover
-        borderRadius: 2 // Slightly rounded corners (looks more like a button)
+        bgcolor: '#fee2e2',
+        '&:hover': { bgcolor: '#fecaca' }, 
+        borderRadius: 2 
       }}
     >
       <DeleteForever fontSize="small" />
@@ -232,7 +253,7 @@ const handleDeletePoll = async (id) => {
         <Grid item xs={12} md={4.5}>
           <Stack spacing={3}>
             {/* POLLING SECTION */}
-           {/* POLLING SECTION - Horizontal Scroll or Wrap */}
+          
 <Box sx={{ mb: 4 }}>
   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
     <Poll color="secondary" />
@@ -243,7 +264,7 @@ const handleDeletePoll = async (id) => {
     {activePolls.map((poll) => (
       <Grid item xs={12} sm={6} key={poll.id}>
         <Paper sx={{ p: 2, borderRadius: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', position: 'relative' }}>
-          {/* Delete Button at top right of card */}
+          
           {userRole === 'admin' && (
             <IconButton 
               size="small" 
@@ -291,7 +312,7 @@ const handleDeletePoll = async (id) => {
   </Grid>
 </Box>
 
-            {/* COMPLAINTS SECTION (Filtered) */}
+            {/* COMPLAINTS SECTION */}
             <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
               <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                 <AssignmentLate sx={{ color: '#f59e0b' }} />
@@ -313,8 +334,6 @@ const handleDeletePoll = async (id) => {
           </Stack>
         </Grid>
       </Grid>
-
-      {/* --- POPUPS (DIALOGS) - Updated with onClick handlers --- */}
       
       {/* Notice Dialog */}
       <Dialog open={openNotice} onClose={() => setOpenNotice(false)} fullWidth maxWidth="sm">
@@ -328,7 +347,6 @@ const handleDeletePoll = async (id) => {
     <MenuItem value="Event">Society Event</MenuItem>
   </TextField>
 
-  {/* Only show Date/Time inputs if needed */}
   {(newNotice.category === 'Meeting' || newNotice.category === 'Event') && (
     <Stack direction="row" spacing={2}>
       <TextField label="Event Date" type="date" fullWidth InputLabelProps={{ shrink: true }} 

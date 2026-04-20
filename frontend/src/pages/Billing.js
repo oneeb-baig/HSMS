@@ -7,20 +7,21 @@ import {
 import { Payment, ReceiptLong, Search } from '@mui/icons-material';
 import axios from 'axios';
 
-// 1. Move the month arrays OUTSIDE the component so they are globally available
-const monthList = [
+
+
+
+const Billing = () => {
+
+  const monthList = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
 
-// This creates the list with years for your dropdowns
 const yearOptions = ["2025", "2026"];
 const fullMonthOptions = yearOptions.flatMap(year => 
   monthList.map(month => `${month} ${year}`)
 );
 
-const Billing = () => {
-  // --- AUTO-DETECT CURRENT MONTH ---
   const getCurrentMonthString = () => {
     const date = new Date();
     return `${monthList[date.getMonth()]} ${date.getFullYear()}`;
@@ -28,12 +29,12 @@ const Billing = () => {
 
   const [bills, setBills] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [monthFilter, setMonthFilter] = useState(''); // Default is empty to show "All Months"
+  const [monthFilter, setMonthFilter] = useState('');
   
   const [genOpen, setGenOpen] = useState(false);
   const [billingMonth, setBillingMonth] = useState(getCurrentMonthString());
   const [dueDate, setDueDate] = useState('');
-const [customAmount, setCustomAmount] = useState(''); // Default to 3000
+const [customAmount, setCustomAmount] = useState('');
   const fetchBills = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/bills');
@@ -53,7 +54,7 @@ const [customAmount, setCustomAmount] = useState(''); // Default to 3000
     await axios.post('http://localhost:5000/api/generate-bills', {
       billingMonth,
       dueDate,
-      amount: customAmount // Send the custom amount
+      amount: customAmount 
     });
     alert(`Charges applied for ${billingMonth}!`);
     setGenOpen(false);
@@ -63,14 +64,17 @@ const [customAmount, setCustomAmount] = useState(''); // Default to 3000
   }
 };
 
-  // --- REAL-TIME FILTER LOGIC ---
   const filteredBills = bills.filter(bill => {
-    // Show all if filter is empty, otherwise match the month
-    const matchesMonth = monthFilter === '' || bill.billing_month === monthFilter;
+    const billMonth = (bill.billing_month || "").trim().toLowerCase();
+    const filterMonth = monthFilter.trim().toLowerCase();
     
+    const matchesMonth = monthFilter === '' || billMonth === filterMonth;
+    
+    // 2. Handle Search Filter
+    const search = searchTerm.toLowerCase();
     const matchesSearch = 
-      bill.house_no.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (bill.resident_name && bill.resident_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      bill.house_no.toLowerCase().includes(search) || 
+      (bill.resident_name && bill.resident_name.toLowerCase().includes(search));
     
     return matchesMonth && matchesSearch;
   });
@@ -81,7 +85,7 @@ const [selectedBill, setSelectedBill] = useState(null);
 const [cardData, setCardData] = useState({ number: '', expiry: '', cvc: '' });
 
 const handleConfirmPayment = async () => {
-  // Use selectedBill.bill_id because our SQL query used 'b.id as bill_id'
+  
   const billId = selectedBill?.bill_id || selectedBill?.id;
 
   if (!billId) {
@@ -100,7 +104,6 @@ const handleConfirmPayment = async () => {
   }
 };
 
-// --- FORMATTING FUNCTIONS ---
 const formatCardNumber = (value) => {
   return value.replace(/\W/gi, '').replace(/(.{4})/g, '$1 ').trim();
 };
@@ -126,7 +129,7 @@ const formatExpiry = (value) => {
         </Button>
       </Stack>
 
-      {/* SEARCH AND FILTER BAR */}
+       {/* SEARCH AND FILTER BAR  */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <TextField 
           label="Search House / Name" 
@@ -166,7 +169,7 @@ const formatExpiry = (value) => {
           </TableHead>
           <TableBody>
             {filteredBills.map((bill) => {
-  // Calculate total in real-time
+ 
   const totalAmount = parseFloat(bill.base_charges || 0) + parseFloat(bill.maintenance_charges || 0);
 
   return (
@@ -208,7 +211,7 @@ const formatExpiry = (value) => {
         </Table>
       </TableContainer>
 
-      {/* AUTOMATION DIALOG */}
+      {/* Generate Bills Pop up */}
       <Dialog open={genOpen} onClose={() => setGenOpen(false)}>
   <DialogTitle>Apply Monthly Maintenance Charges</DialogTitle>
   <DialogContent>
@@ -235,7 +238,7 @@ const formatExpiry = (value) => {
 </Dialog>
 
 
-{/* PAYMENT MODAL */}
+{/* Payment Pop up */}
 <Dialog open={payOpen} onClose={() => setPayOpen(false)} maxWidth="sm" fullWidth>
   <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid #e2e8f0' }}>
     Secure Payment Gateway

@@ -3,7 +3,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
   Paper, Typography, Box, Stack, IconButton, Tooltip, Chip, 
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, 
-  Button, MenuItem, Grid, Divider // <--- ADDED THESE TWO
+  Button, MenuItem, Grid, Divider, InputAdornment
 } from '@mui/material';
 import { Delete, Edit, Search, SwapHoriz, Visibility } from '@mui/icons-material';
 import axios from 'axios';
@@ -23,7 +23,9 @@ const MemberDirectory = () => {
   });
 const [viewOpen, setViewOpen] = useState(false);
 const [currentMember, setCurrentMember] = useState(null);
-  // 2. FETCH DATA FUNCTION
+const [searchTerm, setSearchTerm] = useState('');
+ 
+// Fetching
   const fetchAllData = async () => {
     try {
       const membersRes = await axios.get('http://localhost:5000/api/members');
@@ -39,18 +41,9 @@ const [currentMember, setCurrentMember] = useState(null);
     fetchAllData();
   }, []); 
 
-  // 3. HANDLER FUNCTIONS (MUST BE ABOVE RETURN)
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this resident?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/members/${id}`);
-        fetchAllData(); // Refresh list
-      } catch (error) {
-        console.error("Error deleting member", error);
-      }
-    }
-  };
 
+
+  // Editing
   const handleOpenEdit = (member) => {
     setSelectedMember(member);
     setOpen(true);
@@ -69,6 +62,8 @@ const [currentMember, setCurrentMember] = useState(null);
     }
   };
 
+
+  // Tranfering
   const handleTransferClick = (member) => {
     setTransferData({
       house_no: member.house_no,
@@ -92,18 +87,58 @@ const [currentMember, setCurrentMember] = useState(null);
   };
   
 
+    // Deleting
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this resident?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/members/${id}`);
+        fetchAllData();
+      } catch (error) {
+        console.error("Error deleting member", error);
+      }
+    }
+  };
+  
+// View
  const handleViewDetails = (member) => {
-  console.log("Member Data from DB:", member); // <--- OPEN BROWSER CONSOLE (F12)
   setCurrentMember(member);
   setViewOpen(true);
 };
-  // 4. THE RETURN (THE UI)
+
+// Searching
+const filteredMembers = members.filter((member) => {
+    const searchLow = searchTerm.toLowerCase();
+    return (
+      member.full_name.toLowerCase().includes(searchLow) ||
+      member.house_no.toLowerCase().includes(searchLow) ||
+      (member.cnic && member.cnic.includes(searchLow)) ||
+      (member.phone_no && member.phone_no.includes(searchLow))
+    );
+  });
+
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', color: '#334155' }}>
-        Resident Directory
-      </Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#334155' }}>
+          Resident Directory
+        </Typography>
 
+        {/* --- NEW SEARCH BAR --- */}
+        <TextField
+          size="small"
+          placeholder="Search by name, house, or CNIC..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ width: 350, bgcolor: 'white', borderRadius: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search sx={{ color: 'gray' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Stack>
       <TableContainer component={Paper} sx={{ borderRadius: 3, elevation: 3 }}>
         <Table>
           <TableHead sx={{ bgcolor: '#f8fafc' }}>
@@ -117,7 +152,8 @@ const [currentMember, setCurrentMember] = useState(null);
             </TableRow>
           </TableHead>
           <TableBody>
-            {members.map((member) => (
+            {filteredMembers.length > 0 ? (
+              filteredMembers.map((member) => (
               <TableRow key={member.id}>
                 <TableCell align="center">{member.full_name}</TableCell>
                 <TableCell align="center">{member.phone_no}</TableCell>
@@ -156,7 +192,16 @@ const [currentMember, setCurrentMember] = useState(null);
                   </Stack>
                 </TableCell>
               </TableRow>
-            ))}
+            ))
+          ) : (
+            <TableRow>
+    <TableCell colSpan={6} align="center">
+      <Typography variant="body1" sx={{ py: 2, color: 'text.secondary' }}>
+        No residents found matching your search.
+      </Typography>
+    </TableCell>
+  </TableRow>
+)}
           </TableBody>
         </Table>
       </TableContainer>

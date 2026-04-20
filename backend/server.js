@@ -132,7 +132,39 @@ app.post('/api/units', async (req, res) => {
 });
 
 
-// MODULE 2: BILLING & FINANCIALS
+// 1. Delete Unit
+app.delete('/api/units/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM units WHERE unit_id = $1", [id]);
+    res.json({ message: "Unit deleted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error: Check if this unit is linked to a resident.");
+  }
+});
+
+// 2. Update Unit
+app.put('/api/units/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { unit_no, unit_type, floor_no, base_charges, marla } = req.body;
+    
+    await pool.query(
+      `UPDATE units SET 
+        unit_no = $1, unit_type = $2, floor_no = $3, base_charges = $4, marla = $5 
+       WHERE unit_id = $6`,
+      [unit_no, unit_type, floor_no, base_charges, marla, id]
+    );
+    res.json({ message: "Unit updated successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+
+// MODULE 2: BILLING & FINANCES
 
 app.get('/api/bills', async (req, res) => {
   const result = await pool.query(`
@@ -188,7 +220,7 @@ app.put('/api/bills/pay/:id', async (req, res) => {
   res.json({ message: "Paid" });
 });
 
-// Expense Routes
+// Expense
 app.get('/api/expenses', async (req, res) => {
   const result = await pool.query("SELECT * FROM expenses ORDER BY expense_date DESC");
   res.json(result.rows);
@@ -244,6 +276,26 @@ app.post('/api/notices', async (req, res) => {
   res.json(result.rows[0]);
 });
 
+app.delete('/api/notices/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Execute the delete query
+        const result = await pool.query("DELETE FROM notices WHERE id = $1 RETURNING *", [id]);
+
+        // Check if the notice actually existed
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Notice not found." });
+        }
+
+        res.json({ message: "Notice deleted successfully", deletedNotice: result.rows[0] });
+    } catch (err) {
+        console.error("Delete Error:", err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+
 app.get('/api/polls/active', async (req, res) => {
   const result = await pool.query("SELECT * FROM polls WHERE is_active = true ORDER BY created_at DESC");
   res.json(result.rows);
@@ -258,4 +310,206 @@ app.post('/api/polls/vote', async (req, res) => {
 // START SERVER
 app.listen(5000, () => {
   console.log("Server is running on port 5000");
+});
+
+
+// Requiremnet 4a
+
+// 1. Log a New Visitor (Entry)
+app.post('/api/visitors/check-in', async (req, res) => {
+    const { visitorName, phone, houseNo, purpose, vehicleNo, status, approvedBy } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO visitor_logs (visitor_name, visitor_phone, house_no, purpose, vehicle_no, status, approved_by) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [visitorName, phone, houseNo, purpose, vehicleNo, status || 'Checked-in', approvedBy || 'Gate']
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to log entry" });
+    }
+});
+
+// 2. Log Exit (Update Exit Time)
+app.put('/api/visitors/check-out/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query(
+            "UPDATE visitor_logs SET exit_time = CURRENT_TIMESTAMP, status = 'Checked-out' WHERE id = $1",
+            [id]
+        );
+        res.json({ message: "Visitor checked out successfully" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to log exit" });
+    }
+});
+
+// 3. Get Active & Pending Visitors (For the Gate Security View)
+app.get('/api/visitors/active', async (req, res) => {
+    try {
+        // Updated Query: Fetch both 'Checked-in' AND 'Pending' statuses
+        const result = await pool.query(
+            "SELECT * FROM visitor_logs WHERE status = 'Checked-in' OR status = 'Pending' ORDER BY entry_time DESC"
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Fetch failed" });
+    }
+});
+
+
+// 4. Confirm Arrival of Pre-Approved Guest
+app.put('/api/visitors/confirm-arrival/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query(
+            `UPDATE visitor_logs 
+             SET status = 'Checked-in', 
+                 entry_time = CURRENT_TIMESTAMP 
+             WHERE id = $1`,
+            [id]
+        );
+        res.json({ message: "Guest arrival confirmed" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to confirm arrival" });
+    }
+});
+
+// Requirement 4b
+
+// Optimized Attendance Toggle
+app.post('/api/staff/attendance', async (req, res) => {
+    const { staffId } = req.body;
+    try {
+        const staffCheck = await pool.query(
+            "SELECT status FROM staff_registry WHERE staff_id = $1",
+            [staffId]
+        );
+        
+        if (staffCheck.rows.length === 0) return res.status(404).json({ error: "Staff not found" });
+
+        // Logic: If they are NOT 'In', they must be 'Out' or 'Active' (New)
+        const isInside = staffCheck.rows[0].status === 'In';
+
+        if (!isInside) {
+            // ACTION: MARK ENTRY
+            await pool.query("INSERT INTO staff_attendance (staff_id) VALUES ($1)", [staffId]);
+            await pool.query("UPDATE staff_registry SET status = 'In' WHERE staff_id = $1", [staffId]);
+            res.json({ message: "Entry Marked" });
+        } else {
+            // ACTION: MARK EXIT
+            await pool.query(
+                "UPDATE staff_attendance SET check_out_time = CURRENT_TIMESTAMP WHERE staff_id = $1 AND check_out_time IS NULL",
+                [staffId]
+            );
+            await pool.query("UPDATE staff_registry SET status = 'Out' WHERE staff_id = $1", [staffId]);
+            res.json({ message: "Exit Marked" });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Attendance failed" });
+    }
+});
+
+// GET all registered staff
+app.get('/api/staff', async (req, res) => {
+    try {
+        // Change: Fetch everyone who is 'In' OR 'Out' OR 'Active'
+        // This stops them from disappearing when status changes
+        const result = await pool.query(
+            "SELECT * FROM staff_registry WHERE status IN ('In', 'Out', 'Active') ORDER BY full_name ASC"
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch staff list" });
+    }
+});
+
+// Register New Staff
+app.post('/api/staff/register', async (req, res) => {
+    const { fullName, role, phone, cnic, assignedHouse } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO staff_registry (full_name, role, phone_number, id_card_no, assigned_house, status) 
+             VALUES ($1, $2, $3, $4, $5, 'Out') RETURNING *`, 
+            // Setting 'Out' as default instead of 'Active' avoids conflicts
+            [fullName, role, phone, cnic, assignedHouse]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Registration failed" });
+    }
+});
+
+
+
+
+// Requirement 4c: Get Status of All Gates
+app.get('/api/gates', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM gates ORDER BY gate_id ASC");
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch gate status" });
+    }
+});
+
+// Requirement 4c: Toggle Gate Status (Lock/Open)
+app.put('/api/gates/toggle/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // 1. Get current status
+        const gate = await pool.query("SELECT current_status FROM gates WHERE gate_id = $1", [id]);
+        if (gate.rows.length === 0) return res.status(404).json({ error: "Gate not found" });
+
+        const newStatus = gate.rows[0].current_status === 'Locked' ? 'Open' : 'Locked';
+
+        // 2. Update status and timestamp
+        await pool.query(
+            "UPDATE gates SET current_status = $1, last_action_time = CURRENT_TIMESTAMP WHERE gate_id = $2",
+            [newStatus, id]
+        );
+
+        res.json({ message: `Gate ${newStatus} successfully`, newStatus });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to operate gate" });
+    }
+});
+
+
+// Requirement 4D
+
+// Get all routes with assigned guard names
+app.get('/api/patrol/routes', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT r.*, s.full_name as guard_name 
+            FROM patrol_routes r
+            LEFT JOIN staff_registry s ON r.assigned_staff_id = s.staff_id
+            ORDER BY r.route_id ASC
+        `);
+        res.json(result.rows); // This sends the array to React
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch routes" });
+    }
+});
+
+// Assign a guard to a route
+app.put('/api/patrol/assign', async (req, res) => {
+    const { routeId, staffId } = req.body;
+    try {
+        await pool.query(
+            "UPDATE patrol_routes SET assigned_staff_id = $1, last_patrol_time = CURRENT_TIMESTAMP WHERE route_id = $2",
+            [staffId, routeId]
+        );
+        res.json({ message: "Guard assigned to route" });
+    } catch (err) {
+        res.status(500).json({ error: "Assignment failed" });
+    }
 });

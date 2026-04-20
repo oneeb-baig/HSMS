@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, AppBar, Toolbar } from '@mui/material'
-import { Dashboard, People, Receipt, History, Business, Announcement, ReceiptLong, Campaign } from '@mui/icons-material';
+import { Dashboard, People, Receipt, History, Business, Announcement, ReceiptLong, Campaign,Badge } from '@mui/icons-material';
 import { Link, Outlet } from 'react-router-dom';
+import SecurityIcon from '@mui/icons-material/Security';
 import Communication from '../pages/Communication';
 
 const drawerWidth = 260; 
@@ -18,6 +19,9 @@ export default function MainLayout() {
     { text: 'Expenses', icon: <Receipt />, path: '/dashboard/expenses' },
     { text: 'Reports', icon: <Receipt />, path: '/dashboard/reports' },
     { text: 'Communication', icon: <Campaign />, path: '/dashboard/communication' },
+    { text: 'Track Visitors', icon: <SecurityIcon />, path: '/dashboard/visitors' },
+    { text: 'Staff Management', icon: <Badge />, path: '/dashboard/staff' },
+    { text: 'Gate And Patrolling', icon: <SecurityIcon />, path: '/dashboard/GateAndPatrolling' }
   ];
 
   return (
@@ -25,7 +29,7 @@ export default function MainLayout() {
     
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: '#1e293b' }}>
         <Toolbar>
-          <Typography variant="h6" noWrap>HSMS - Management System</Typography>
+          <Typography variant="h6" noWrap>HSMS - Housing Society Management System</Typography>
         </Toolbar>
       </AppBar>
 
@@ -54,7 +58,23 @@ export default function MainLayout() {
       </Drawer>
 
     
-      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: '#ffffff', minHeight: '100vh' }}>
+   <Box 
+  component="main" 
+  sx={{ 
+    flexGrow: 1, 
+    // Change 'p: 3' to specific padding to remove the right-side gap
+    pt: 3, 
+    pb: 3, 
+    pl: 3, 
+    pr: 0, // Set right padding to 0 so content can touch the end
+    width: `calc(100% - ${drawerWidth}px)`, 
+    minHeight: '100vh',
+    display: 'flex', 
+    flexDirection: 'column', 
+    overflowX: 'hidden',
+    bgcolor: '#ffffff'
+  }}
+>
         <Toolbar />
        
         <Outlet />

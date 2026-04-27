@@ -1,8 +1,9 @@
 import React from 'react';
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, AppBar, Toolbar } from '@mui/material'
-import { Dashboard, People, Receipt, History, Business, Announcement, ReceiptLong, Campaign,Badge } from '@mui/icons-material';
+import { Dashboard, People, Receipt, History, Business, Announcement, ReceiptLong, Campaign,Badge, Inventory } from '@mui/icons-material';
 import { Link, Outlet } from 'react-router-dom';
 import SecurityIcon from '@mui/icons-material/Security';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import Communication from '../pages/Communication';
 
 const drawerWidth = 260; 
@@ -21,7 +22,9 @@ export default function MainLayout() {
     { text: 'Communication', icon: <Campaign />, path: '/dashboard/communication' },
     { text: 'Track Visitors', icon: <SecurityIcon />, path: '/dashboard/visitors' },
     { text: 'Staff Management', icon: <Badge />, path: '/dashboard/staff' },
-    { text: 'Gate And Patrolling', icon: <SecurityIcon />, path: '/dashboard/GateAndPatrolling' }
+    { text: 'Gate And Patrolling', icon: <SecurityIcon />, path: '/dashboard/GateAndPatrolling' },
+    { text: 'Facilities Booking', icon: <EventAvailableIcon />, path: '/dashboard/FacilityBooking' },
+    { text: 'Inventory', icon: <Inventory />, path: '/dashboard/inventory' }
   ];
 
   return (

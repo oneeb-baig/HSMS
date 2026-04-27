@@ -513,3 +513,145 @@ app.put('/api/patrol/assign', async (req, res) => {
         res.status(500).json({ error: "Assignment failed" });
     }
 });
+
+
+// Unassign a guard from a route
+app.put('/api/patrol/unassign/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query(
+            "UPDATE patrol_routes SET assigned_staff_id = NULL WHERE route_id = $1",
+            [id]
+        );
+        res.json({ message: "Guard unassigned successfully" });
+    } catch (err) {
+        res.status(500).json({ error: "Unassignment failed" });
+    }
+});
+
+// Requirement 5
+
+// 5a
+
+// Get all facilities and their general status
+app.get('/api/facilities', async (req, res) => {
+    try {
+        // This query checks if there's a booking for the current date and time
+        const result = await pool.query(`
+            SELECT 
+                f.*, 
+                CASE 
+                    WHEN b.booking_id IS NOT NULL THEN 'Booked' 
+                    ELSE f.status 
+                END as current_display_status,
+                b.resident_name as current_occupant
+            FROM facilities f
+            LEFT JOIN facility_bookings b ON f.facility_id = b.facility_id 
+                AND b.booking_date = CURRENT_DATE 
+                AND CURRENT_TIME BETWEEN b.start_time AND b.end_time
+            ORDER BY f.facility_id ASC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch facilities" });
+    }
+});
+
+// New route to get the full schedule (dates and times)
+app.get('/api/facilities/bookings/all', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT b.*, f.name as facility_name 
+            FROM facility_bookings b
+            JOIN facilities f ON b.facility_id = f.facility_id
+            WHERE b.booking_date >= CURRENT_DATE
+            ORDER BY b.booking_date ASC, b.start_time ASC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch booking schedule" });
+    }
+});
+
+// Create a new booking
+app.post('/api/facilities/book', async (req, res) => {
+    // 1. Destructure only what we need (removed resident_house)
+    const { facility_id, resident_name, booking_date, start_time, end_time } = req.body;
+    
+    try {
+        // 2. Conflict Check (Keep this, it's great for your project logic!)
+        const checkConflict = await pool.query(
+            "SELECT * FROM facility_bookings WHERE facility_id = $1 AND booking_date = $2 AND NOT (end_time <= $3 OR start_time >= $4)",
+            [facility_id, booking_date, start_time, end_time]
+        );
+
+        if (checkConflict.rows.length > 0) {
+            return res.status(400).json({ error: "This time slot is already booked." });
+        }
+
+        // 3. Insert into DB (Only 5 columns now)
+        await pool.query(
+            "INSERT INTO facility_bookings (facility_id, resident_name, booking_date, start_time, end_time) VALUES ($1, $2, $3, $4, $5)",
+            [facility_id, resident_name, booking_date, start_time, end_time]
+        );
+        
+        res.json({ message: "Facility booked successfully!" });
+    } catch (err) {
+        console.error("LOGGING ERROR FOR ONEEB:", err.message); // Look at your CMD/Terminal to see the exact error
+        res.status(500).json({ error: "Booking failed due to server error." });
+    }
+});
+
+
+// Requirement 5b
+
+// Get all inventory items
+app.get('/api/inventory', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM society_inventory ORDER BY item_id ASC");
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch inventory" });
+    }
+});
+
+// Add a new item
+app.post('/api/inventory/add', async (req, res) => {
+    const { item_name, category, quantity, status } = req.body;
+    try {
+        await pool.query(
+            "INSERT INTO society_inventory (item_name, category, quantity, status) VALUES ($1, $2, $3, $4)",
+            [item_name, category, quantity, status]
+        );
+        res.json({ message: "Item added to inventory" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to add item" });
+    }
+});
+
+
+// Delete an item
+app.delete('/api/inventory/:id', async (req, res) => {
+    try {
+        await pool.query("DELETE FROM society_inventory WHERE item_id = $1", [req.params.id]);
+        res.json({ message: "Item deleted" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to delete item" });
+    }
+});
+
+// Update item details (Edit)
+app.put('/api/inventory/:id', async (req, res) => {
+    const { item_name, category, quantity, status } = req.body;
+    try {
+        await pool.query(
+            "UPDATE society_inventory SET item_name=$1, category=$2, quantity=$3, status=$4, last_inspected=CURRENT_DATE WHERE item_id=$5",
+            [item_name, category, quantity, status, req.params.id]
+        );
+        res.json({ message: "Item updated" });
+    } catch (err) {
+        res.status(500).json({ error: "Update failed" });
+    }
+});

@@ -16,6 +16,8 @@ import Communication from './pages/Communication';
 import TrackVisitors from './pages/TrackVisitors';
 import StaffManagement from './pages/StaffManagement';
 import GateAndPatrolling from './pages/GatesAndPatrolling';
+import FacilityBooking from './pages/FacilityBooking';
+import InventoryPage from './pages/Inventory';
 
 function App() {
   return (
@@ -38,6 +40,8 @@ function App() {
     <Route path="visitors" element={<TrackVisitors />} />
     <Route path="staff" element={<StaffManagement />} />
     <Route path="GateAndPatrolling" element={<GateAndPatrolling />} />
+    <Route path="FacilityBooking" element={<FacilityBooking />} />
+    <Route path="inventory" element={<InventoryPage />} />
   </Route>
 </Routes>
     </BrowserRouter>

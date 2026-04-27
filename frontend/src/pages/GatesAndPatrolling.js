@@ -84,6 +84,16 @@ const GateAndPatrolling = () => {
     } catch (err) { alert("Assignment failed"); }
   };
 
+
+const handleUnassign = async (routeId) => {
+  try {
+    await axios.put(`http://localhost:5000/api/patrol/unassign/${routeId}`);
+    fetchRoutes(); // Refresh the table
+  } catch (err) {
+    alert("Could not unassign guard");
+  }
+};
+
   return (
     <Box sx={{ p: 3, width: '100%' }}>
       {/* SECTION 1: GATES */}
@@ -123,7 +133,7 @@ const GateAndPatrolling = () => {
       <Divider sx={{ mb: 5 }} />
 
       {/* SECTION 2: PATROLLING ROUTES */}
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>Security Patrol Assignments</Typography>
+      <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>Security Patrol Routes</Typography>
       <Paper sx={{ p: 3, borderRadius: 3 }}>
         <TableContainer>
           <Table size="small">
@@ -142,12 +152,39 @@ const GateAndPatrolling = () => {
                   <TableCell>{route.route_name}</TableCell>
                   <TableCell>{route.start_point}</TableCell>
                   <TableCell>{route.end_point}</TableCell>
-                  <TableCell>
-                    <Chip label={route.guard_name || 'Unassigned'} color={route.guard_name ? 'primary' : 'default'} variant="outlined" size="small" />
-                  </TableCell>
+                 <TableCell>
+  <Chip 
+    label={route.guard_name || 'Vacant'} 
+    color={route.guard_name ? 'success' : 'default'} // Green if assigned, grey if vacant
+    variant={route.guard_name ? 'filled' : 'outlined'}
+    size="small" 
+  />
+</TableCell>
                   <TableCell align="center">
-                    <Button variant="outlined" size="small" onClick={() => handleOpenAssignModal(route.route_id)}>Assign</Button>
-                  </TableCell>
+  {route.guard_name ? (
+    // If a guard is assigned, show the Unassign button
+    <Button 
+      variant="outlined" 
+      size="small" 
+      color="error" 
+      onClick={() => handleUnassign(route.route_id)}
+      sx={{ textTransform: 'none' }}
+    >
+      Unassign
+    </Button>
+  ) : (
+    // If no guard is assigned, show the Assign button
+    <Button 
+      variant="contained" 
+      size="small" 
+      color="primary" 
+      onClick={() => handleOpenAssignModal(route.route_id)}
+      sx={{ textTransform: 'none' }}
+    >
+      Assign
+    </Button>
+  )}
+</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -452,13 +452,87 @@ app.get('/api/polls/active', async (req, res) => {
   res.json(result.rows);
 });
 
+
+
 app.post('/api/polls/vote', async (req, res) => {
-  const { pollId, selectedOption } = req.body;
-  const result = await pool.query(`UPDATE polls SET options = jsonb_set(options, ARRAY[$1], ((options->>$1)::int + 1)::text::jsonb) WHERE id = $2 RETURNING *`, [selectedOption, pollId]);
-  res.json(result.rows[0]);
+  const { pollId, selectedOption, residentName } = req.body;
+  
+  // Validation to prevent empty data from hitting the database
+  if (!pollId || !selectedOption || !residentName) {
+    return res.status(400).json({ error: "Missing required voting data" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN'); // Start Transaction
+
+    // 1. Check if this resident has already voted on this specific poll
+    const existingVote = await client.query(
+      "SELECT selected_option FROM poll_votes WHERE poll_id = $1 AND resident_name = $2",
+      [pollId, residentName]
+    );
+
+    if (existingVote.rows.length > 0) {
+      const oldOption = existingVote.rows[0].selected_option;
+
+      // If they are trying to vote for the same option, exit early
+      if (oldOption === selectedOption) {
+        await client.query('ROLLBACK');
+        return res.json({ message: "You have already voted for this option." });
+      }
+
+      // 2. Decrement the count for the OLD option in the 'polls' table
+      await client.query(
+        `UPDATE polls 
+         SET options = jsonb_set(options, ARRAY[$1], ((options->>$1)::int - 1)::text::jsonb) 
+         WHERE id = $2`,
+        [oldOption, pollId]
+      );
+
+      // 3. Update the choice in the 'poll_votes' tracking table
+      await client.query(
+        "UPDATE poll_votes SET selected_option = $1 WHERE poll_id = $2 AND resident_name = $3",
+        [selectedOption, pollId, residentName]
+      );
+    } else {
+      // 4. If first-time voter, insert a new record into 'poll_votes'
+      await client.query(
+        "INSERT INTO poll_votes (poll_id, resident_name, selected_option) VALUES ($1, $2, $3)",
+        [pollId, residentName, selectedOption]
+      );
+    }
+
+    // 5. Increment the count for the NEW option in the 'polls' table
+    const result = await client.query(
+      `UPDATE polls 
+       SET options = jsonb_set(options, ARRAY[$1], ((options->>$1)::int + 1)::text::jsonb) 
+       WHERE id = $2 RETURNING *`,
+      [selectedOption, pollId]
+    );
+
+    await client.query('COMMIT'); // Finalize all changes
+    res.json(result.rows[0]); // Return the updated poll object to the frontend
+    
+  } catch (err) {
+    await client.query('ROLLBACK'); // Undo everything if any step fails
+    console.error("Critical Voting Error:", err.message);
+    res.status(500).json({ error: "Internal server error processing your vote." });
+  } finally {
+    client.release(); // Return the database connection to the pool
+  }
 });
 
-
+app.delete('/api/polls/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM polls WHERE id = $1", [id]);
+    res.json({ message: "Poll deleted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Server error deleting poll" });
+  }
+});
 
 
 // Requiremnet 4a

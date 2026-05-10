@@ -151,24 +151,51 @@ const fetchActivePolls = async () => {
 };
 
 const handleCreatePoll = async () => {
-  const options = { [newPoll.option1]: 0, [newPoll.option2]: 0 };
-  await axios.post('http://localhost:5000/api/polls', { 
-    question: newPoll.question, 
-    options: options 
-  });
-  setOpenPoll(false);
-  setNewPoll({ question: '', option1: '', option2: '' });
-  fetchActivePolls();
-};
+  // Simple validation
+  if (!newPoll.question || !newPoll.option1 || !newPoll.option2) {
+    return alert("Please fill the question and both options.");
+  }
 
-const handleVote = async () => {
-  if (!selectedVote) return alert("Select an option!");
-  await axios.post('http://localhost:5000/api/polls/vote', { 
-    pollId: activePolls.id, 
-    selectedOption: selectedVote 
-  });
-  alert("Vote recorded!");
-  fetchActivePolls();
+    // Format the options into an object with 0 initial votes
+    const options = { 
+      [newPoll.option1]: 0, 
+      [newPoll.option2]: 0 
+    };
+
+    try {
+      // Ensure the URL matches your backend port (5000)
+      await axios.post('http://localhost:5000/api/polls', { 
+        question: newPoll.question, 
+        options: options 
+      });
+
+      setOpenPoll(false); // Close dialog
+      setNewPoll({ question: '', option1: '', option2: '' }); // Reset form
+      fetchActivePolls(); // Refresh the list on the dashboard
+      alert("Poll created successfully!");
+    } catch (err) {
+      console.error("Poll Creation Error:", err);
+      alert("Failed to create poll. Check if the backend route is added.");
+    }
+  };
+
+const handleVote = async (pollId) => {
+  if (!selectedVote || selectedVote.id !== pollId) return alert("Select an option!");
+  
+  // Retrieve the name stored during login
+  const residentName = localStorage.getItem('fullName'); 
+
+  try {
+    await axios.post('http://localhost:5000/api/polls/vote', { 
+      pollId: pollId, 
+      selectedOption: selectedVote.val,
+      residentName: residentName 
+    });
+    alert("Vote updated successfully!");
+    fetchActivePolls(); // Refresh counts from the server
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 const handleDeletePoll = async (id) => {
@@ -361,14 +388,14 @@ const handleDelete = async (id) => {
           </RadioGroup>
 
           <Button 
-            variant="contained" 
-            size="small" 
-            fullWidth 
-            sx={{ mt: 1, bgcolor: '#334155', textTransform: 'none' }}
-            onClick={() => handleVote(poll.id)}
-          >
-            Cast Vote
-          </Button>
+  variant="contained" 
+  size="small" 
+  fullWidth 
+  sx={{ mt: 1, bgcolor: '#334155', textTransform: 'none' }}
+  onClick={() => handleVote(poll.id)} // Pass the ID here
+>
+  Cast Vote
+</Button>
         </Paper>
       </Grid>
     ))}

@@ -17,6 +17,7 @@ const pulseKeyframes = {
 };
 
 const Communication = () => {
+  const [loading, setLoading] = useState(false);
   const [notices, setNotices] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [openNotice, setOpenNotice] = useState(false);
@@ -54,33 +55,50 @@ const [newNotice, setNewNotice] = useState({
   };
 
   const handleSOS = async () => {
-    if (window.confirm("TRIGGER EMERGENCY SOS? This will alert security immediately.")) {
-      try {
-        // 1. Send the private alert to the backend (existing logic)
-        await axios.post('http://localhost:5000/api/sos', { 
-          house_no: 'H-101', 
-          resident_name: 'Oneeb' 
-        });
+  // 1. Get real data from localStorage
+  const residentName = localStorage.getItem('fullName');
+  const houseNo = localStorage.getItem('houseNo');
+  const userRole = localStorage.getItem('userRole');
 
-        // 2. Automatically create a PUBLIC Notice with category 'SOS'
-        await axios.post('http://localhost:5000/api/notices', {
-          title: "🚨 EMERGENCY SOS ALERT",
-          content: `An emergency alert has been triggered from House H-101 (Oneeb). Security and medical teams have been notified.`,
-          category: "SOS" // This sets the category you wanted
-        });
+  // Check if data is missing BEFORE proceeding
+  if (!residentName || !houseNo) {
+    return alert("Error: User details not found. Please log out and log back in.");
+  }
 
-        alert("EMERGENCY ALERT SENT AND POSTED TO NOTICE BOARD!");
-        
-        // 3. Refresh both lists to show the new complaint and the new notice
-        fetchComplaints();
-        fetchNotices(); 
-      } catch (err) {
-        console.error("SOS Trigger failed:", err);
-        alert("Critical failure sending SOS. Please contact security manually.");
-      }
+  if (window.confirm("TRIGGER EMERGENCY SOS? This will alert security immediately.")) {
+    setLoading(true); // Optional: if you have a loading state
+    try {
+      // 2. Send the private alert with the CORRECT variables
+      await axios.post('http://localhost:5000/api/sos', { 
+        house_no: houseNo, 
+        resident_name: residentName 
+      });
+
+      // 3. Create the PUBLIC Notice
+      const sosContent = userRole === 'admin' 
+        ? `SYSTEM ALERT: An emergency broadcast has been initiated by the Management Office.`
+        : `An emergency alert has been triggered from House ${houseNo} (${residentName}). Security and medical teams have been notified.`;
+
+      await axios.post('http://localhost:5000/api/notices', {
+        title: userRole === 'admin' ? "⚠️ MANAGEMENT EMERGENCY ALERT" : "🚨 RESIDENT EMERGENCY SOS",
+        content: sosContent,
+        category: "SOS" 
+      });
+
+      alert("EMERGENCY ALERT SENT AND POSTED TO NOTICE BOARD!");
+      
+      // Refresh lists
+      if (typeof fetchComplaints === 'function') fetchComplaints();
+      if (typeof fetchNotices === 'function') fetchNotices(); 
+
+    } catch (err) {
+      console.error("SOS Trigger failed:", err);
+      alert("Critical failure sending SOS. Please contact security manually.");
+    } finally {
+      setLoading(false);
     }
-  };
-
+  }
+};  
 
 const handlePostNotice = async () => {
     if(!newNotice.title || !newNotice.content) return alert("Please fill all fields");
@@ -99,19 +117,30 @@ const handlePostNotice = async () => {
   }
 };
 
-  const handleSubmitComplaint = async () => {
-    if(!newComp.subject || !newComp.description) return alert("Please fill all fields");
-    try {
-      await axios.post('http://localhost:5000/api/complaints', {
-        ...newComp,
-        house_no: 'H-101',
-        resident_name: 'Oneeb'
-      });
-      setOpenComp(false); // Close the popup
-      setNewComp({ subject: '', description: '' });
-      fetchComplaints(); // Refresh list
-    } catch (err) { console.error(err); }
-  };
+ const handleSubmitComplaint = async () => {
+  if(!newComp.subject || !newComp.description) return alert("Please fill all fields");
+  
+  // Get real data from localStorage
+  const residentName = localStorage.getItem('fullName');
+  const houseNo = localStorage.getItem('houseNo');
+
+  try {
+    const response = await axios.post('http://localhost:5000/api/complaints', {
+      ...newComp,
+      house_no: houseNo, // Dynamic value
+      resident_name: residentName // Dynamic value
+    });
+    
+    setOpenComp(false); 
+    setNewComp({ subject: '', description: '' });
+    
+    // Add the new complaint to state immediately so the UI updates
+    setComplaints([response.data, ...complaints]); 
+  } catch (err) { 
+    console.error(err); 
+    alert("Failed to submit complaint.");
+  }
+};
 
   // Filter complaints to EXCLUDE SOS for the "Recent Complaints" section
   const regularComplaints = complaints.filter(c => c.subject !== 'EMERGENCY SOS');
@@ -148,8 +177,32 @@ const handleDeletePoll = async (id) => {
     fetchActivePolls();
   }
 };
+  
+// Complains
 
+const handleResolve = async (id) => {
+  try {
+    await axios.put(`http://localhost:5000/api/complaints/${id}/resolve`);
+    // Update the main complaints list state
+    setComplaints(prev => 
+      prev.map(c => c.id === id ? { ...c, status: 'Resolved' } : c)
+    );
+  } catch (err) {
+    console.error("Error resolving complaint", err);
+  }
+};
 
+const handleDelete = async (id) => {
+  if (window.confirm("Are you sure you want to delete this complaint?")) {
+    try {
+      await axios.delete(`http://localhost:5000/api/complaints/${id}`);
+      // Remove from the main complaints list state
+      setComplaints(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error("Error deleting complaint", err);
+    }
+  }
+};
   
   return (
     <Box sx={{ p: 2, ...pulseKeyframes }}>
@@ -222,7 +275,20 @@ const handleDeletePoll = async (id) => {
           </Stack>
         )}
         
-        <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>{notice.content}</Typography>
+       <Typography 
+  variant="body2" 
+  color="textSecondary" 
+  sx={{ 
+    wordBreak: 'break-word', 
+    overflowWrap: 'break-word', // Forces breaks in long strings
+    whiteSpace: 'pre-wrap',     // Preserves formatting but wraps text
+    width: '100%', 
+    mt: 1.5,
+    display: 'block'            // Changed from inline-block to block
+  }}
+>
+  {notice.content}
+</Typography>
       </Box>
 
       {userRole === 'admin' && (
@@ -327,6 +393,33 @@ const handleDeletePoll = async (id) => {
                       <Chip label={comp.status} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
                       <Typography variant="caption" color="textSecondary">House: {comp.house_no}</Typography>
                     </Stack>
+<Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+        {userRole === 'admin' && (
+          <>
+            {comp.status !== 'Resolved' && (
+              <Button 
+                size="small" 
+                variant="contained" 
+                color="success"
+                onClick={() => handleResolve(comp.id)}
+                sx={{ fontSize: '0.65rem', py: 0 }}
+              >
+                Resolve
+              </Button>
+            )}
+            <Button 
+              size="small" 
+              variant="outlined" 
+              color="error"
+              onClick={() => handleDelete(comp.id)}
+              sx={{ fontSize: '0.65rem', py: 0 }}
+            >
+              Delete
+            </Button>
+          </>
+        )}
+      </Stack>
+
                   </Box>
                 )) : <Typography variant="caption">No regular complaints yet.</Typography>}
               </Stack>

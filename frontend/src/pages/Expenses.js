@@ -9,6 +9,7 @@ import axios from 'axios';
 
 
 const Expenses = () => {
+  const userRole = localStorage.getItem('userRole');
   const categories = ["Staff Salaries", "Repairs", "Administrative Costs", "Utility Bills", "Park Maintenance", "Other"];
   const [expenses, setExpenses] = useState([]);
   const [form, setForm] = useState({ description: '', category: '', amount: '', date: new Date().toISOString().split('T')[0] });
@@ -66,6 +67,7 @@ const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 
 </Stack>
 
       {/* ADD EXPENSE FORM */}
+      {userRole === 'admin'&&(<>
       <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }}>
 
         
@@ -89,7 +91,7 @@ const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 
           </Stack>
         </form>
       </Paper>
-
+</>)}
       {/* EXPENSE TABLE */}
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
         <Table>
@@ -99,7 +101,9 @@ const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 
               <TableCell><b>Description</b></TableCell>
               <TableCell><b>Category</b></TableCell>
               <TableCell align="right"><b>Amount (PKR)</b></TableCell>
+{userRole === 'admin' && (<>
               <TableCell align="center"><b>Actions</b></TableCell>
+            </>)}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -111,6 +115,7 @@ const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 
                 <TableCell align="right" sx={{ fontWeight: 'bold', color: '#dc2626' }}>
                   -{exp.amount}
                 </TableCell>
+                {userRole === 'admin' && (<>
                 <TableCell align="center">
       <Tooltip title="Delete Expense">
         <IconButton color="error" onClick={() => handleDelete(exp.id)}>
@@ -118,6 +123,7 @@ const totalSpent = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 
         </IconButton>
       </Tooltip>
     </TableCell>
+    </>)}
               </TableRow>
             ))}
           </TableBody>

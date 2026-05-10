@@ -12,6 +12,7 @@ import {
 import axios from 'axios';
 
 const GateAndPatrolling = () => {
+  const userRole = localStorage.getItem('userRole');
   // 1. State Management
   const [gates, setGates] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
@@ -143,7 +144,11 @@ const handleUnassign = async (routeId) => {
                 <TableCell><b>Start Point</b></TableCell>
                 <TableCell><b>End Point</b></TableCell>
                 <TableCell><b>Assigned Guard</b></TableCell>
-                <TableCell align="center"><b>Action</b></TableCell>
+                {userRole === 'admin' &&(<>
+<TableCell align="center"><b>Action</b></TableCell>
+</>
+  )}
+                
               </TableRow>
             </TableHead>
             <TableBody>
@@ -160,6 +165,7 @@ const handleUnassign = async (routeId) => {
     size="small" 
   />
 </TableCell>
+                  {userRole === 'admin' &&(<>
                   <TableCell align="center">
   {route.guard_name ? (
     // If a guard is assigned, show the Unassign button
@@ -185,6 +191,8 @@ const handleUnassign = async (routeId) => {
     </Button>
   )}
 </TableCell>
+</>
+  )}
                 </TableRow>
               ))}
             </TableBody>

@@ -13,6 +13,8 @@ const RegisterMember = () => {
   const [status, setStatus] = useState('Owner');
   const [vehicleNo, setVehicleNo] = useState('');
   const [vehicleType, setVehicleType] = useState('');
+  const [username, setUsername] = useState('');
+const [password, setPassword] = useState('');
   
   // TENANT-ONLY STATES
   const [ownerName, setOwnerName] = useState('');
@@ -72,6 +74,8 @@ const handleRegister = async () => {
       const memberData = { 
         fullName, phone, email, houseNo, block, status, cnic, 
         vehicleNo, vehicleType, 
+        username, password,
+  role: 'resident',
         ownerName: status === 'Tenant' ? ownerName : null,
         ownerPhone: status === 'Tenant' ? ownerPhone : null,
         ownerCnic: status === 'Tenant' ? ownerCnic : null 
@@ -154,6 +158,17 @@ const handleRegister = async () => {
             ))}
           </TextField>
 
+          <TextField 
+  select 
+  label="Block Name" 
+  value={block} 
+  onChange={(e) => setBlock(e.target.value)}
+>
+  <MenuItem value="Block 1">Block 1</MenuItem>
+  <MenuItem value="Block 2">Block 2</MenuItem>
+  <MenuItem value="Block 3">Block 3</MenuItem>
+</TextField>
+
           <Stack direction="row" spacing={2}>
             <TextField label="Vehicle Number" fullWidth value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />
             <TextField 
@@ -181,6 +196,10 @@ const handleRegister = async () => {
               <TextField  label="Owner CNIC" value={ownerCnic} onChange={(e) => setOwnerCnic(e.target.value)} />
             </Stack>
           )}
+
+          <Typography variant="subtitle2" color="primary" sx={{ mt: 2 }}>Login Credentials</Typography>
+<TextField label="Set Username" value={username} onChange={(e) => setUsername(e.target.value)} fullWidth />
+<TextField label="Set Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth />
 
           <Button 
             variant="contained" 

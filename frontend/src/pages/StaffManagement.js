@@ -9,6 +9,7 @@ import { Search, PersonAdd, Login, Logout, Engineering, Close, Home } from '@mui
 import axios from 'axios';
 
 const StaffManagement = () => {
+   const userRole = localStorage.getItem('userRole');
   const [staffList, setStaffList] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]); // New state for houses
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,9 @@ const StaffManagement = () => {
     role: 'Maid',
     phone: '',
     cnic: '',
-    assignedHouse: ''
+    assignedHouse: '',
+    username: '', // New
+    password: ''  // New
   });
 
   const fetchData = async () => {
@@ -42,27 +45,44 @@ const StaffManagement = () => {
   }, []);
 
   const handleOpen = () => setOpen(true);
-  const handleClose = () => {
-    setOpen(false);
-    setFormData({ fullName: '', role: 'Maid', phone: '', cnic: '', assignedHouse: '' });
-  };
+ const handleClose = () => {
+  setOpen(false);
+  setFormData({ 
+    fullName: '', 
+    role: 'Maid', 
+    phone: '', 
+    cnic: '', 
+    assignedHouse: '',
+    username: '', // Add this
+    password: ''  // Add this
+  });
+};
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!formData.assignedHouse) return alert("Please select a house number");
+  if (e) e.preventDefault();
+  
+  // Update validation to allow Guards to pass
+  if (formData.role !== 'Guard' && !formData.assignedHouse) {
+    return alert("Please select a house number");
+  }
+  
+  setLoading(true);
+  try {
+    // Log this to your browser console to see if username/password are actually there
+    console.log("Data being sent to backend:", formData);
+
+    const response = await axios.post('http://localhost:5000/api/staff/register', formData);
     
-    setLoading(true);
-    try {
-      await axios.post('http://localhost:5000/api/staff/register', formData);
-      handleClose();
-      fetchData();
-      alert("Staff Registered Successfully");
-    } catch (err) {
-      alert("Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert("Staff Registered Successfully");
+    handleClose();
+    fetchData();
+  } catch (err) {
+    console.error("Error response:", err.response?.data);
+    alert("Registration failed: " + (err.response?.data?.error || "Server Error"));
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAttendance = async (staffId) => {
   try {
@@ -93,6 +113,8 @@ const StaffManagement = () => {
             Manage daily attendance for domestic workers and service providers
           </Typography>
         </Box>
+        {userRole === 'admin' && (
+      <>
         <Button 
           variant="contained" 
           startIcon={<PersonAdd />} 
@@ -101,6 +123,8 @@ const StaffManagement = () => {
         >
           Add New Member
         </Button>
+        </>
+        )}
       </Stack>
 
       {/* MAIN LIST SECTION */}
@@ -254,6 +278,32 @@ const StaffManagement = () => {
         </TextField>
       )}
     </Stack>
+
+    {formData.role === 'Guard' && (
+  <Stack spacing={2} sx={{ mt: 1, p: 1, bgcolor: '#f8fafc', borderRadius: 1 }}>
+    <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748b' }}>
+      LOGIN CREDENTIALS (GUARD ONLY)
+    </Typography>
+    
+    <TextField 
+      label="Username" 
+      fullWidth 
+      size="small" 
+      value={formData.username} 
+      onChange={(e) => setFormData({...formData, username: e.target.value})} 
+    />
+    
+    <TextField 
+      label="Password" 
+      type="password" 
+      fullWidth 
+      size="small" 
+      value={formData.password} 
+      onChange={(e) => setFormData({...formData, password: e.target.value})} 
+    />
+  </Stack>
+)}
+
   </DialogContent>
   <DialogActions sx={{ p: 2 }}>
     <Button onClick={handleClose} color="inherit">Cancel</Button>

@@ -64,20 +64,25 @@ const [customAmount, setCustomAmount] = useState('');
   }
 };
 
-  const filteredBills = bills.filter(bill => {
-    const billMonth = (bill.billing_month || "").trim().toLowerCase();
-    const filterMonth = monthFilter.trim().toLowerCase();
-    
-    const matchesMonth = monthFilter === '' || billMonth === filterMonth;
-    
-    // 2. Handle Search Filter
-    const search = searchTerm.toLowerCase();
-    const matchesSearch = 
-      bill.house_no.toLowerCase().includes(search) || 
-      (bill.resident_name && bill.resident_name.toLowerCase().includes(search));
-    
-    return matchesMonth && matchesSearch;
-  });
+const filteredBills = bills.filter(bill => {
+  // 1. Log the data once to see what keys exist (Only runs once for the first item)
+  // console.log("Current Bill Object:", bill); 
+
+  // 2. Safe Data Extraction (Handles null/undefined)
+  const billMonth = String(bill.billing_month || "").trim().toLowerCase();
+  const filterMonth = String(monthFilter || "").trim().toLowerCase();
+  
+  // Try both house_no and unit_no since you used unit_no in the other page
+  const houseNo = String(bill.house_no || bill.unit_no || "").toLowerCase();
+  const resName = String(bill.resident_name || "").toLowerCase();
+  const search = searchTerm.toLowerCase();
+
+  // 3. Match Logic
+  const matchesMonth = monthFilter === '' || billMonth === filterMonth;
+  const matchesSearch = houseNo.includes(search) || resName.includes(search);
+
+  return matchesMonth && matchesSearch;
+});
 
 
 const [payOpen, setPayOpen] = useState(false);
@@ -113,6 +118,8 @@ const formatExpiry = (value) => {
 };
 
 
+console.log("Total Bills:", bills.length, "Filtered Bills:", filteredBills.length);
+
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
@@ -130,28 +137,27 @@ const formatExpiry = (value) => {
       </Stack>
 
        {/* SEARCH AND FILTER BAR  */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-        <TextField 
-          label="Search House / Name" 
-          size="small" 
-          sx={{ width: 300 }}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{ endAdornment: <Search /> }}
-        />
-        <TextField
-          select
-          label="Filter by Month"
-          size="small"
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          sx={{ width: 200 }}
-        >
-          <MenuItem value=""><em>All Months</em></MenuItem>
-          {fullMonthOptions.map((m) => (
-            <MenuItem key={m} value={m}>{m}</MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+  <TextField 
+    label="Search House / Name" 
+    size="small" 
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    sx={{ width: { xs: '100%', sm: 300 } }}
+    InputProps={{ endAdornment: <Search /> }}
+  />
+  <TextField
+    select
+    label="Filter Month"
+    size="small"
+    value={monthFilter}
+    onChange={(e) => setMonthFilter(e.target.value)}
+    sx={{ width: { xs: '100%', sm: 200 } }}
+  >
+    <MenuItem value="">All Months</MenuItem>
+    {fullMonthOptions.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+  </TextField>
+</Stack>
 
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
         <Table>
@@ -168,46 +174,48 @@ const formatExpiry = (value) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredBills.map((bill) => {
- 
-  const totalAmount = parseFloat(bill.base_charges || 0) + parseFloat(bill.maintenance_charges || 0);
+  {filteredBills.map((bill, index) => {
+    // Create a unique key to prevent the "Encountered two children with the same key" error
+    const rowKey = bill.id ? `bill-${bill.id}` : `row-${bill.house_no}-${bill.billing_month}-${index}`;
+    
+    const totalAmount = parseFloat(bill.base_charges || 0) + parseFloat(bill.maintenance_charges || 0);
 
-  return (
-    <TableRow key={bill.id || bill.house_no}>
-      <TableCell align="center">{bill.resident_name}</TableCell>
-      <TableCell align="center">{bill.house_no}</TableCell>
-      <TableCell align="center">{bill.billing_month || 'N/A'}</TableCell>
-      <TableCell align="center">{bill.base_charges} PKR</TableCell>
-      <TableCell align="center">{bill.maintenance_charges} PKR</TableCell>
-      <TableCell align="center" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
-        {totalAmount} PKR
-      </TableCell>
-      <TableCell align="center">
-        <Chip 
-          label={bill.status === 'Paid' ? 'Paid' : 'Unpaid'} 
-          color={bill.status === 'Paid' ? 'success' : 'error'} 
-          size="small" 
-        />
-      </TableCell>
-      <TableCell align="center">
-        {bill.status !== 'Paid' && (
-          <Button 
-  variant="outlined" 
-  size="small" 
-  startIcon={<Payment />}
-  onClick={() => {
-    setSelectedBill(bill);
-    setPayOpen(true);
-  }}
->
-  Pay Now
-</Button>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-})}
-          </TableBody>
+    return (
+      <TableRow key={rowKey}>
+        <TableCell align="center">{bill.resident_name || 'N/A'}</TableCell>
+        <TableCell align="center">{bill.house_no}</TableCell>
+        <TableCell align="center">{bill.billing_month || 'N/A'}</TableCell>
+        <TableCell align="center">{bill.base_charges} PKR</TableCell>
+        <TableCell align="center">{bill.maintenance_charges} PKR</TableCell>
+        <TableCell align="center" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
+          {totalAmount} PKR
+        </TableCell>
+        <TableCell align="center">
+          <Chip 
+            label={bill.status === 'Paid' ? 'Paid' : 'Unpaid'} 
+            color={bill.status === 'Paid' ? 'success' : 'error'} 
+            size="small" 
+          />
+        </TableCell>
+        <TableCell align="center">
+          {bill.status !== 'Paid' && (
+            <Button 
+              variant="outlined" 
+              size="small" 
+              startIcon={<Payment />}
+              onClick={() => {
+                setSelectedBill(bill);
+                setPayOpen(true);
+              }}
+            >
+              Pay Now
+            </Button>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  })}
+</TableBody>
         </Table>
       </TableContainer>
 

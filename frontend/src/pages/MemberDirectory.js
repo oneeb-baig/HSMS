@@ -9,6 +9,7 @@ import { Delete, Edit, Search, SwapHoriz, Visibility } from '@mui/icons-material
 import axios from 'axios';
 
 const MemberDirectory = () => {
+  const userRole = localStorage.getItem('userRole');
   // 1. STATES
   const [members, setMembers] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]);
@@ -169,6 +170,8 @@ const filteredMembers = members.filter((member) => {
                 </TableCell>
                 <TableCell align="center">
                   <Stack direction="row" spacing={1} justifyContent="center">
+                    {userRole === 'admin' && (
+                      <>
                     <Tooltip title="Edit">
                       <IconButton color="primary" onClick={() => handleOpenEdit(member)}>
                         <Edit />
@@ -184,6 +187,8 @@ const filteredMembers = members.filter((member) => {
                         <SwapHoriz />
                       </IconButton>
                     </Tooltip>
+                    </>
+                    )}
                     <Tooltip title="View Full Profile">
   <IconButton color="info" onClick={() => handleViewDetails(member)}>
     <Visibility />
@@ -241,6 +246,22 @@ const filteredMembers = members.filter((member) => {
             ))}
           </TextField>
         </Grid>
+
+<Grid item xs={12} sm={4}>
+    <TextField 
+      select 
+      label="Block Name" 
+      fullWidth 
+      value={selectedMember.block_name || ''} 
+      onChange={(e) => setSelectedMember({ ...selectedMember, block_name: e.target.value })}
+    >
+      <MenuItem value="Block 1">Block 1</MenuItem>
+      <MenuItem value="Block 2">Block 2</MenuItem>
+      <MenuItem value="Block 3">Block 3</MenuItem>
+      <MenuItem value="Block A">Block A</MenuItem>
+    </TextField>
+  </Grid>
+
         <Grid item xs={12} sm={6}>
           <TextField select label="Status" fullWidth value={selectedMember.ownership_status || ''} onChange={(e) => setSelectedMember({ ...selectedMember, ownership_status: e.target.value })}>
             <MenuItem value="Owner">Owner</MenuItem>

@@ -10,6 +10,7 @@ import axios from 'axios';
 
 
 const TrackVisitors = () => {
+  const userRole = localStorage.getItem('userRole');
   const [visitors, setVisitors] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -122,20 +123,30 @@ const TrackVisitors = () => {
                 <MenuItem value="Maintenance">Maintenance</MenuItem>
                 <MenuItem value="Other">Other</MenuItem>
               </TextField>
+
 <FormControlLabel
-    control={
-      <Checkbox 
-        checked={formData.status === 'Pending'}
-        onChange={(e) => setFormData({
-          ...formData, 
-          status: e.target.checked ? 'Pending' : 'Checked-in'
-        })}
-        color="primary"
-      />
-    }
-    label="Pre-Approve (Expected Guest)"
-    sx={{ color: '#475569' }}
-  />
+  control={
+    <Checkbox 
+      // Rule: If resident, it must be checked. Otherwise, use the state.
+      checked={userRole === 'resident' ? true : formData.status === 'Pending'}
+      
+      // Rule: Disable the checkbox if the user is a resident
+      disabled={userRole === 'resident'}
+      
+      onChange={(e) => setFormData({
+        ...formData, 
+        status: e.target.checked ? 'Pending' : 'Checked-in'
+      })}
+      color="primary"
+    />
+  }
+  label="Pre-Approve (Expected Guest)"
+  sx={{ 
+    color: '#475569',
+    // Optional: make it look slightly different if disabled so they know why
+    '& .Mui-disabled': { color: '#94a3b8' } 
+  }}
+/>
 
 
               <Button type="submit" variant="contained" disabled={loading} sx={{ bgcolor: '#1e293b', mt: 1 }}>
@@ -168,14 +179,16 @@ const TrackVisitors = () => {
     </Stack>
 
     {/* Tab Toggle - The "Single Box" Solution */}
-    <Tabs 
-      value={tabValue} 
-      onChange={(e, newValue) => setTabValue(newValue)} 
-      sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
-    >
-      <Tab label={`Currently Inside (${visitors.filter(v => v.status === 'Checked-in').length})`} />
-      <Tab label={`Pre-Approved (${visitors.filter(v => v.status === 'Pending').length})`} />
-    </Tabs>
+   <Tabs 
+  value={tabValue} 
+  onChange={(e, newValue) => setTabValue(newValue)} 
+  sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+>
+  {(userRole === 'admin' || userRole === 'guard') && (
+    <Tab label={`Currently Inside (${visitors.filter(v => v.status === 'Checked-in').length})`} />
+  )}
+  <Tab label={`Pre-Approved (${visitors.filter(v => v.status === 'Pending').length})`} />
+</Tabs>
 
     <TableContainer sx={{ width: '100%' }}>
       <Table size="medium" sx={{ minWidth: '100%' }}>
@@ -184,7 +197,9 @@ const TrackVisitors = () => {
             <TableCell sx={{ fontWeight: 'bold' }}>Visitor</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>House</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>{tabValue === 0 ? 'Entry Time' : 'Purpose'}</TableCell>
+              {(userRole === 'admin' || userRole === 'guard') && (
             <TableCell align="center" sx={{ fontWeight: 'bold' }}>Action</TableCell>
+              )}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -200,11 +215,13 @@ const TrackVisitors = () => {
                   </TableCell>
                   <TableCell>{v.house_no}</TableCell>
                   <TableCell>{new Date(v.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                 {(userRole === 'admin' || userRole === 'guard') && (
                   <TableCell align="center">
                     <Button variant="contained" color="error" size="small" disableElevation startIcon={<ExitToApp />} onClick={() => handleCheckOut(v.id)}>
                       Exit
                     </Button>
                   </TableCell>
+                 )}
                 </TableRow>
               ))
             ) : (

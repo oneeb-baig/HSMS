@@ -19,28 +19,142 @@ const transporter = nodemailer.createTransport({
 });
 
 
-// MODULE 1: RESIDENT & UNIT MANAGEMENT
+// Global Login Route
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    console.log(`Login attempt for: ${username}`); // Debug log
 
-// Register Member (1a)
+    try {
+        const userQuery = `
+    SELECT 
+        u.username, u.role, u.linked_id,
+        m.full_name AS res_name, m.house_no,
+        s.full_name AS staff_name
+    FROM users u
+    LEFT JOIN members m ON u.linked_id::text = m.id::text AND u.role = 'resident'
+    LEFT JOIN staff_registry s ON u.linked_id::text = s.staff_id::text AND u.role = 'guard'
+    WHERE u.username = $1 AND u.password_hash = $2`;
+
+        const result = await pool.query(userQuery, [username, password]);
+        
+        console.log("Database result rows:", result.rows.length); // See if it found anyone
+
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            
+            // Safe assignment with fallback values
+            const fullName = user.role === 'resident' ? user.res_name : 
+                           (user.role === 'guard' ? user.staff_name : 'Admin');
+            const houseNo = user.house_no || 'N/A';
+
+            res.json({
+                success: true,
+                username: user.username,
+                role: user.role,
+                linked_id: user.linked_id,
+                fullName: fullName || 'User',
+                houseNo: houseNo
+            });
+        } else {
+            res.status(401).json({ success: false, error: "Invalid username or password" });
+        }
+    } catch (err) {
+        console.error("CRITICAL BACKEND ERROR:", err); // This MUST show in terminal
+        res.status(500).json({ success: false, error: "Database communication failed" });
+    }
+});
+
+
+app.get('/api/dashboard-summary', async (req, res) => {
+  try {
+    const results = {};
+
+    // Test Bills
+    try {
+      const r = await pool.query("SELECT COALESCE(SUM(total_amount), 0) as total FROM bills WHERE status = 'Paid'");
+      results.income = Number(r.rows[0].total);
+    } catch (e) { console.error("Error in Bills Query:", e.message); throw e; }
+
+    // Test Expenses
+    try {
+      const r = await pool.query('SELECT COALESCE(SUM("amount"), 0) as total FROM expenses');
+      results.expenses = Number(r.rows[0].total);
+    } catch (e) { console.error("Error in Expenses Query:", e.message); throw e; }
+
+    // Test Counts (Combined for speed)
+    const counts = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM units) as houses,
+        (SELECT COUNT(*) FROM members) as residents,
+        (SELECT COUNT(*) FROM staff_registry) as staff,
+        (SELECT COUNT(*) FROM notices WHERE category = 'SOS') as sos
+    `);
+    
+    const c = counts.rows[0];
+    res.json({
+      totalIncome: results.income,
+      totalExpenses: results.expenses,
+      netBalance: results.income - results.expenses,
+      totalHouses: Number(c.houses),
+      totalResidents: Number(c.residents),
+      activeStaff: Number(c.staff),
+      pendingSOS: Number(c.sos)
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: "Check terminal for specific query failure" });
+  }
+});
+
+
+// Member Registration 1a:
+
 app.post('/api/members', async (req, res) => {
   const { 
     fullName, phone, email, houseNo, block, status, 
-    cnic, vehicleNo, vehicleType, ownerName, ownerPhone, ownerCnic 
+    cnic, vehicleNo, vehicleType, ownerName, ownerPhone, ownerCnic,
+    username, password // <-- Destructure new fields from frontend
   } = req.body;
 
+  const client = await pool.connect(); // Use a client for Transaction
+
   try {
-    const result = await pool.query(
+    await client.query('BEGIN'); // Start Transaction
+
+    // 1. Insert into members table
+    const memberResult = await client.query(
       `INSERT INTO members (
         full_name, phone_no, email, house_no, block_name, ownership_status, 
         cnic, vehicle_no, vehicle_type, 
         owner_name_if_tenant, owner_phone_if_tenant, owner_cnic_if_tenant
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [fullName, phone, email, houseNo, block, status, cnic, vehicleNo, vehicleType, ownerName, ownerPhone, ownerCnic]
     );
-    res.json(result.rows[0]);
+
+    const newMemberId = memberResult.rows[0].id;
+
+    // 2. Insert into users table
+    await client.query(
+      `INSERT INTO users (username, password_hash, role, linked_id) 
+       VALUES ($1, $2, $3, $4)`,
+      [username, password, 'resident', newMemberId] // Hardcoded 'resident' role
+    );
+
+    await client.query('COMMIT'); // Save both changes
+    res.json({ message: "Resident and Login account created successfully!" });
+
   } catch (err) {
-    console.error("DATABASE ERROR:", err.message);
-    res.status(500).json({ error: err.message });
+    await client.query('ROLLBACK'); // Undo everything if there is an error
+    console.error("REGISTRATION ERROR:", err.message);
+    
+    // Check for duplicate username error
+    if (err.code === '23505') {
+        res.status(400).json({ error: "Username already exists. Please choose another." });
+    } else {
+        res.status(500).json({ error: "Database error: " + err.message });
+    }
+  } finally {
+    client.release(); // Release client back to pool
   }
 });
 
@@ -54,26 +168,37 @@ app.get('/api/members', async (req, res) => {
   }
 });
 
-// Update Member (1a - Edit)
+// Update Member (1a - Edit) - UPDATED TO INCLUDE BLOCK
 app.put('/api/members/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      full_name, phone_no, email, house_no, ownership_status, 
+      full_name, phone_no, email, house_no, 
+      block_name, // <-- ADDED THIS
+      ownership_status, 
       cnic, vehicle_no, vehicle_type, 
       owner_name_if_tenant, owner_phone_if_tenant, owner_cnic_if_tenant 
     } = req.body;
 
     const result = await pool.query(
       `UPDATE members SET 
-        full_name=$1, phone_no=$2, email=$3, house_no=$4, ownership_status=$5,
-        cnic=$6, vehicle_no=$7, vehicle_type=$8, 
-        owner_name_if_tenant=$9, owner_phone_if_tenant=$10, owner_cnic_if_tenant=$11
-      WHERE id = $12 RETURNING *`,
-      [full_name, phone_no, email, house_no, ownership_status, cnic, vehicle_no, vehicle_type, owner_name_if_tenant, owner_phone_if_tenant, owner_cnic_if_tenant, id]
+        full_name=$1, phone_no=$2, email=$3, house_no=$4, 
+        block_name=$5, -- <-- ADDED THIS
+        ownership_status=$6,
+        cnic=$7, vehicle_no=$8, vehicle_type=$9, 
+        owner_name_if_tenant=$10, owner_phone_if_tenant=$11, owner_cnic_if_tenant=$12
+      WHERE id = $13 RETURNING *`,
+      [
+        full_name, phone_no, email, house_no, 
+        block_name, // Index $5
+        ownership_status, cnic, vehicle_no, vehicle_type, 
+        owner_name_if_tenant, owner_phone_if_tenant, owner_cnic_if_tenant, 
+        id // Index $13
+      ]
     );
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err.message);
     res.status(500).send("Server Error");
   }
 });
@@ -259,6 +384,32 @@ app.post('/api/complaints', async (req, res) => {
   res.json(result.rows[0]);
 });
 
+
+// Resolve a complaint
+app.put('/api/complaints/:id/resolve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "UPDATE complaints SET status = 'Resolved' WHERE id = $1 RETURNING *",
+      [id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Delete a complaint
+app.delete('/api/complaints/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM complaints WHERE id = $1", [id]);
+    res.json({ message: "Complaint deleted successfully" });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 app.post('/api/sos', async (req, res) => {
   const { house_no, resident_name } = req.body;
   await pool.query("INSERT INTO complaints (subject, description, status, house_no, resident_name) VALUES ($1, $2, $3, $4, $5)", ['EMERGENCY SOS', 'Resident triggered an alert!', 'Urgent', house_no, resident_name]);
@@ -307,10 +458,7 @@ app.post('/api/polls/vote', async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// START SERVER
-app.listen(5000, () => {
-  console.log("Server is running on port 5000");
-});
+
 
 
 // Requiremnet 4a
@@ -429,22 +577,48 @@ app.get('/api/staff', async (req, res) => {
 
 // Register New Staff
 app.post('/api/staff/register', async (req, res) => {
-    const { fullName, role, phone, cnic, assignedHouse } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO staff_registry (full_name, role, phone_number, id_card_no, assigned_house, status) 
-             VALUES ($1, $2, $3, $4, $5, 'Out') RETURNING *`, 
-            // Setting 'Out' as default instead of 'Active' avoids conflicts
-            [fullName, role, phone, cnic, assignedHouse]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: "Registration failed" });
-    }
+  const { fullName, role, phone, cnic, username, password } = req.body;
+  
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Insert into staff_registry using your 'staff_id' column
+    const staffResult = await client.query(
+      "INSERT INTO staff_registry (full_name, role, phone_number, id_card_no) VALUES ($1, $2, $3, $4) RETURNING staff_id",
+      [fullName, role, phone, cnic]
+    );
+
+    const newStaffId = staffResult.rows[0].staff_id;
+
+    // 2. Normalize the role for the 'users' table
+    // If the role is 'Guard', it becomes 'guard' to match the DB constraint
+    const loginRole = role.toLowerCase(); 
+
+    await client.query(
+      "INSERT INTO users (username, password_hash, role, linked_id) VALUES ($1, $2, $3, $4)",
+      [username, password, loginRole, newStaffId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: "Guard registered and login created!" });
+
+  } 
+  
+  catch (err) {
+    await client.query('ROLLBACK');
+    console.error("FULL DATABASE ERROR:", err); // Look at your Terminal window!
+    res.status(500).json({ 
+        error: err.message, 
+        detail: err.detail,
+        code: err.code 
+    });
+}
+  finally {
+    client.release();
+  }
 });
-
-
 
 
 // Requirement 4c: Get Status of All Gates
@@ -577,30 +751,35 @@ app.get('/api/facilities/bookings/all', async (req, res) => {
 
 // Create a new booking
 app.post('/api/facilities/book', async (req, res) => {
-    // 1. Destructure only what we need (removed resident_house)
     const { facility_id, resident_name, booking_date, start_time, end_time } = req.body;
-    
+
     try {
-        // 2. Conflict Check (Keep this, it's great for your project logic!)
-        const checkConflict = await pool.query(
-            "SELECT * FROM facility_bookings WHERE facility_id = $1 AND booking_date = $2 AND NOT (end_time <= $3 OR start_time >= $4)",
+        // Check for any overlap for this specific facility on this specific date
+        const overlapCheck = await pool.query(
+            `SELECT * FROM facility_bookings 
+             WHERE facility_id = $1 
+             AND booking_date = $2 
+             AND (
+                (start_time <= $3 AND end_time > $3) OR 
+                (start_time < $4 AND end_time >= $4) OR
+                ($3 <= start_time AND $4 >= end_time)
+             )`,
             [facility_id, booking_date, start_time, end_time]
         );
 
-        if (checkConflict.rows.length > 0) {
-            return res.status(400).json({ error: "This time slot is already booked." });
+        if (overlapCheck.rows.length > 0) {
+            return res.status(400).json({ error: "This time slot is already booked for this facility." });
         }
 
-        // 3. Insert into DB (Only 5 columns now)
+        // If no overlap, proceed to insert
         await pool.query(
             "INSERT INTO facility_bookings (facility_id, resident_name, booking_date, start_time, end_time) VALUES ($1, $2, $3, $4, $5)",
             [facility_id, resident_name, booking_date, start_time, end_time]
         );
-        
-        res.json({ message: "Facility booked successfully!" });
+
+        res.json({ success: true });
     } catch (err) {
-        console.error("LOGGING ERROR FOR ONEEB:", err.message); // Look at your CMD/Terminal to see the exact error
-        res.status(500).json({ error: "Booking failed due to server error." });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -654,4 +833,11 @@ app.put('/api/inventory/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: "Update failed" });
     }
+});
+
+
+
+// START SERVER
+app.listen(5000, () => {
+  console.log("Server is running on port 5000");
 });

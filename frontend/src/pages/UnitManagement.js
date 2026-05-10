@@ -6,10 +6,13 @@ import {
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import axios from 'axios';
 
 
 const UnitManagement = () => {
+  const userRole = localStorage.getItem('userRole');
+  const [searchTerm, setSearchTerm] = useState("");
   const [units, setUnits] = useState([]);
   const [newUnit, setNewUnit] = useState({ 
     unit_no: '', 
@@ -78,6 +81,10 @@ const handleUpdateUnit = async () => {
   }
 };
 
+const filteredUnits = units.filter((unit) =>
+    unit.unit_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (unit.unit_type && unit.unit_type.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
 
   return (
@@ -86,7 +93,10 @@ const handleUpdateUnit = async () => {
         Unit & Property Management
       </Typography>
 
+
       {/* SECTION 1: ADD NEW UNIT FORM */}
+      {userRole === 'admin' && (
+      <>
       <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem' }}>Add New Unit</Typography>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
@@ -134,6 +144,25 @@ const handleUpdateUnit = async () => {
           </Button>
         </Stack>
       </Paper>
+</>
+)}
+
+{/* NEW SECTION: SEARCH BAR */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <TextField
+          placeholder="Search by Unit No or Type..."
+          size="small"
+          variant="outlined"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ width: { xs: '100%', md: 300 }, bgcolor: 'white' }}
+          InputProps={{
+            startAdornment: (
+              <SearchIcon sx={{ color: 'gray', mr: 1, fontSize: 20 }} />
+            ),
+          }}
+        />
+      </Box>
 
       {/* SECTION 2: UNIT LIST TABLE */}
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
@@ -145,31 +174,43 @@ const handleUpdateUnit = async () => {
               <TableCell sx={{ fontWeight: 'bold' }}>Floor</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Size (Marla)</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Base Charges (Rs)</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+              {userRole === 'admin' && <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
-            {units.map((unit) => (
-              <TableRow key={unit.unit_id}>
-                <TableCell>{unit.unit_no}</TableCell>
-                <TableCell>{unit.unit_type}</TableCell>
-                <TableCell>{(unit.floor_no !== null && unit.floor_no !== '') ? unit.floor_no : '-'}</TableCell>
-                <TableCell>{unit.marla ? `${unit.marla} Marla` : '-'}</TableCell>
-                <TableCell>{unit.base_charges}</TableCell>
-                <TableCell>
-  <Tooltip title="Edit">
-    <IconButton onClick={() => handleEditClick(unit)} color="primary">
-      <Edit />
-    </IconButton>
-  </Tooltip>
-  <Tooltip title="Delete">
-    <IconButton onClick={() => handleDelete(unit.unit_id)} color="error">
-      <Delete />
-    </IconButton>
-  </Tooltip>
-</TableCell>
+            {/* CHANGED: Mapping over filteredUnits instead of units */}
+            {filteredUnits.length > 0 ? (
+              filteredUnits.map((unit) => (
+                <TableRow key={unit.unit_id}>
+                  <TableCell>{unit.unit_no}</TableCell>
+                  <TableCell>{unit.unit_type}</TableCell>
+                  <TableCell>{(unit.floor_no !== null && unit.floor_no !== '') ? unit.floor_no : '-'}</TableCell>
+                  <TableCell>{unit.marla ? `${unit.marla} Marla` : '-'}</TableCell>
+                  <TableCell>{unit.base_charges}</TableCell>
+                  
+                  {userRole === 'admin' && (
+                    <TableCell>          
+                      <Tooltip title="Edit">
+                        <IconButton onClick={() => handleEditClick(unit)} color="primary">
+                          <Edit />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton onClick={() => handleDelete(unit.unit_id)} color="error">
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  )} 
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                  <Typography color="textSecondary">No units found matching "{searchTerm}"</Typography>
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </TableContainer>
